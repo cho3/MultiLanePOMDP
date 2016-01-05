@@ -10,14 +10,8 @@ immutable MOBILParam
 	b_safe::Float64 #safe braking value
 	a_thr::Float64 #minimum accel
 	#db::Float64 #lane bias #we follow the symmetric/USA lane change rule
-	function MOBILParam(;p::Float64=0.25,b_safe::Float64=4.,a_thr::Float64=0.2)
-		self = new()
-		self.p = p
-		self.b_safe = b_safe
-		self.a_thr = a_thr
-		return self
-	end
 end #MOBILParam
+MOBILParam(;p::Float64=0.25,b_safe::Float64=4.,a_thr::Float64=0.2) = MOBILParam(p,b_safe,a_thr)
 ==(a::MOBILParam,b::MOBILParam) = (a.p==b.p) && (a.b_safe==b.b_safe) &&(a.a_thr == b.a_thr)
 Base.hash(a::MOBILParam,h::UInt64=zero(UInt64)) = hash(a.p,hash(a.b_safe,hash(a.a_thr,h)))
 
@@ -48,6 +42,15 @@ type CarState
 	vel::Int
 	lane_change::Int #-1,0, or +1, corresponding to to the right lane, no lane change, or to the left lane
 	behavior::BehaviorModel
+	function CarState(pos::Tuple{Int,Int},vel::Int,lane_change::Int,behavior::BehaviorModel)
+		self = new()
+		self.pos = pos
+		self.vel = vel 
+		assert(abs(lane_change) <= 1)
+		self.lane_change = lane_change 
+		self.behavior = behavior
+		return self
+	end
 end #carstate
 ==(a::CarState,b::CarState) = (a.pos==b.pos) && (a.vel==b.vel) &&(a.lane_change == b.lane_change)&&(a.behavior==b.behavior)
 Base.hash(a::CarState,h::UInt64=zero(UInt64)) = hash(a.vel,hash(a.pos,hash(a.lane_change,hash(a.behavior,h))))

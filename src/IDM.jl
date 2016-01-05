@@ -19,12 +19,11 @@ type PhysicalParam
 	nb_vel_bins::Int
 	nb_env_cars::Int
 	lane_length::Float64
-	NB_PHENOTYPES::Int
 	NB_DIR::Int
 	NB_POS::Int
 	VELOCITIES::Array{Float64,1}
 	POSITIONS::Array{Float64,1}
-	function PhysicalParam(;dt::Float64=0.75,
+	function PhysicalParam(nb_lanes::Int;dt::Float64=0.75,
 							w_car::Float64=2.,
 							l_car::Float64=4.,
 							v_nominal::Float64=31.,
@@ -37,7 +36,6 @@ type PhysicalParam
 							nb_vel_bins::Int=100,
 							nb_env_cars::Int=1,
 							lane_length::Float64=12.,
-							NB_PHENOTYPES::Int=3,
 							NB_DIR::Int=3,)
 		self = new()
 		self.dt = dt
@@ -53,9 +51,8 @@ type PhysicalParam
 		self.nb_vel_bins = nb_vel_bins
 		self.nb_env_cars = nb_env_cars
 		self.lane_length = lane_length
-		self.NB_PHENOTYPES = NB_PHENOTYPES
 		self.NB_DIR = NB_DIR
-		self.NB_POS = (lane_length/x_interval)*(2*nb_lanes-1)
+		self.NB_POS = convert(Int,round((lane_length/x_interval)*((w_lane/y_interval)*nb_lanes-1))) #2*nb_lane-1 ostensibly
 		self.VELOCITIES = collect(linspace(v_slow,v_fast,nb_vel_bins))
 		self.POSITIONS = collect(linspace(-lane_length/2,lane_length/2,convert(Int,round(lane_length/x_interval))))
 		

@@ -65,18 +65,19 @@ type MLPOMDP <: POMDP
 	discount::Float64
 	phys_param::PhysicalParam
 	BEHAVIORS::Array{BehaviorModel,1}
-	function MLPOMDP(;nb_col::Int=3,
+	NB_PHENOTYPES::Int
+	function MLPOMDP(;nb_lanes::Int=2,
 					col_length::Int=48,
 					nb_cars::Int=1,
 					discount::Float64=0.99,
 					r_crash::Float64=-100000.,
 					fuzz::Float64=0.1,
-					phys_param::PhysicalParam=PhysicalParam())
+					phys_param::PhysicalParam=PhysicalParam(nb_lanes))
 		assert((discount >= 0.) && (discount <= 1.))
 		assert((fuzz >= 0.) && (fuzz <= 1.))
 		
 		self = new()
-		self.nb_col = nb_col
+		self.nb_col = convert(Int,round((phys_param.w_lane/phys_param.y_interval)*nb_lanes-1))
 		self.col_length = col_length
 		self.nb_cars = nb_cars
 		#behaviors...
@@ -84,7 +85,8 @@ type MLPOMDP <: POMDP
 		self.discount = discount
 		self.fuzz = fuzz
 		self.phys_param = phys_param
-		self.BEHAVIORS = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[v_slow;v_med;v_fast],[phys_param.l_car])]
+		self.BEHAVIORS = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[phys_param.v_slow;phys_param.v_med;phys_param.v_fast],[phys_param.l_car])]
+		self.NB_PHENOTYPES = length(self.BEHAVIORS)
 		
 		return self
 	end
@@ -92,9 +94,9 @@ type MLPOMDP <: POMDP
 	#rewards
 end #
 
-n_state(p::MLPOMDP) = p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins*(p.col_length*p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins*p.phys_param.NB_PHENOTYPES)^p.nb_cars
+n_states(p::MLPOMDP) = p.nb_col*p.phys_param.nb_vel_bins*(p.col_length*p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins*p.NB_PHENOTYPES)^p.nb_cars
 n_actions(::MLPOMDP) = 9
-n_observations(::MLPOMDP) = p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins*(p.col_length*p.nb_col*p.phys_param.NB_DIR*np.phys_param.b_vel_bins)^p.nb_cars
+n_observations(p::MLPOMDP) = p.nb_col*p.phys_param.nb_vel_bins*(p.col_length*p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins)^p.nb_cars
 
 type StateSpace <: AbstractSpace
 	states::Vector{MLState}

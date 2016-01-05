@@ -1,6 +1,17 @@
 #crash.jl
 #a separate file for all the crashing stuff
 
+function cross2d(x::Array{Float64,1},y::Array{Float64,1})
+	assert(length(x) == length(y))
+	if length(x) == 3
+		return cross(x,y)
+	elseif length(x) != 2
+		error("Incorrect length for cross product")
+	end
+	
+	return x[1]*y[2]-x[2]*y[1]
+end
+
 function line_segment_intersect(p::Array{Float64,1},pr::Array{Float64,1},q::Array{Float64,1},qs::Array{Float64,1})
 	if (length(p) != length(q)) || (length(p) != length(pr)) || (length(q) != length(qs))
 		error("Error: inconsistent dimensionality")
@@ -9,8 +20,8 @@ function line_segment_intersect(p::Array{Float64,1},pr::Array{Float64,1},q::Arra
 	s = qs - q
 	r = pr - p
 	
-	rxs = cross(r,s)
-	q_pxr = cross(q-p,r)
+	rxs = cross2d(r,s)
+	q_pxr = cross2d(q-p,r)
 	if rxs == 0
 		if q_pxr == 0
 			#collinear
@@ -32,8 +43,8 @@ function line_segment_intersect(p::Array{Float64,1},pr::Array{Float64,1},q::Arra
 		end
 	end
 	
-	t = cross(q-p,s)/cross(r,s)
-	u = cross(q-p,r)/cross(r,s)
+	t = cross2d(q-p,s)/cross2d(r,s)
+	u = cross2d(q-p,r)/cross2d(r,s)
 	
 	if (max(0.,min(1.,t)) == t) && (max(0.,min(1.,u)) == u)
 		return true

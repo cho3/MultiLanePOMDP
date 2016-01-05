@@ -2,6 +2,7 @@
 #a bunch of unit tests for all the functions and types for the Multilane POMDP
 
 import Base.==
+import Base.length
 using Base.Test
 
 ##############
@@ -9,6 +10,7 @@ using Base.Test
 ##############
 
 function test_hashing(s::AbstractString,ps)
+	##TODO: make a more comprehensive test that uses more of the created objects
 	println("\t\tTesting $s Hashing")
 	if length(ps) < 2
 		error("Make More objects for testing $s hashing")
@@ -19,7 +21,7 @@ function test_hashing(s::AbstractString,ps)
 	assert(length(d1) == 1)
 	d2 = Dict{typeof(ps[1]),Int}([p=>3 for p in [ps[2];ps[2]]])
 	assert(length(d2) == 1)
-	assert(get(d1,p1,0) == 1)
+	assert(get(d1,ps[1],0) == 1)
 end
 
 function test_equality(s::AbstractString,ps)
@@ -27,9 +29,19 @@ function test_equality(s::AbstractString,ps)
 	if length(ps) < 3
 		error("Make More objects for testing $s equality")
 	end
-	assert(ps[1] == ps[1])
-	assert(ps[2] != ps[3])
-	assert(ps[3] != ps[2])
+	for i = 1:length(ps)
+		for j = 1:length(ps)
+			if i == j
+				assert(ps[i]==ps[j])
+			else
+				assert(ps[i] != ps[j])
+				assert(ps[j] != ps[i])
+			end
+		end
+	end
+	#assert(ps[1] == ps[1])
+	#assert(ps[2] != ps[3])
+	#assert(ps[3] != ps[2])
 end
 
 ##IDM
@@ -106,7 +118,7 @@ function test_mobil_creation()
 	p1 = MOBILParam()
 	p2 = MOBILParam(p=0.5)
 	p3 = MOBILParam(b_safe=5.,a_thr=0.3)
-	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]]
+	ps = [MOBILParam(s) for s in ["cautious";"normal";"aggressive"]]
 end
 
 function test_mobil_equality()
@@ -114,7 +126,7 @@ function test_mobil_equality()
 	p1 = MOBILParam()
 	p2 = MOBILParam(p=0.5)
 	p3 = MOBILParam(b_safe=5.,a_thr=0.3)
-	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]]
+	ps = [MOBILParam(s) for s in ["cautious";"normal";"aggressive"]]
 	test_equality("MOBIL",ps)
 	assert(p1 == p1)
 	assert(p1 != p2)
@@ -128,7 +140,7 @@ function test_mobil_hashing()
 	p1 = MOBILParam()
 	p2 = MOBILParam(p=0.5)
 	p3 = MOBILParam(b_safe=5.,a_thr=0.3)
-	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]]
+	ps = [MOBILParam(s) for s in ["cautious";"normal";"aggressive"]]
 	test_hashing("MOBIL",ps)
 end
 
@@ -161,8 +173,8 @@ function test_get_adj_cars()
 	
 end
 
-function test_get_mobil_lane_changes()
-	println("\t\tTesting get_mobil_lane_changes")
+function test_get_mobil_lane_change()
+	println("\t\tTesting get_mobil_lane_change")
 end
 
 function test_mobil()
@@ -185,6 +197,7 @@ abstract Observation
 abstract POMDP
 abstract AbstractSpace
 abstract AbstractDistribution
+import Iterators.product
 include(joinpath("..","src","ML_types.jl"))
 function test_behavior_model_creation()
 	println("\t\tTesting BehaviorModel creation")
@@ -203,31 +216,116 @@ end
 
 function test_carstate_creation()
 	println("\t\tTesting CarState creation")
+	#nothing to do here--no constructors to test
 end
 
 function test_carstate_equality()
-	println("\t\tTesting CarState equality")
+	#println("\t\tTesting CarState equality")
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = CarState[]
+	push!(ps,CarState((1,1),3,0,bs[1]))
+	push!(ps,CarState((1,1),3,0,bs[2]))
+	push!(ps,CarState((1,1),5,0,bs[1]))
+	push!(ps,CarState((1,1),3,1,bs[1]))
+	push!(ps,CarState((1,2),3,0,bs[1]))
+	push!(ps,CarState((2,1),3,0,bs[1]))
+	
+	test_equality("CarState",ps)
+	
 end
 
 function test_carstate_hashing()
-	println("\t\tTesting CarState hashing")
+	#println("\t\tTesting CarState hashing")
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	ps = CarState[]
+	push!(ps,CarState((1,1),3,0,bs[1]))
+	push!(ps,CarState((1,1),3,0,bs[2]))
+	push!(ps,CarState((1,1),5,0,bs[1]))
+	push!(ps,CarState((1,1),3,1,bs[1]))
+	push!(ps,CarState((1,2),3,0,bs[1]))
+	push!(ps,CarState((2,1),3,0,bs[1]))
+	
+	test_hashing("CarState",ps)
+end
+function test_carstateobs_creation()
+	println("\t\tTesting CarStateObs creation")
+	#nothing to do here--no constructors to test
+end
+
+function test_carstateobs_equality()
+	#println("\t\tTesting CarStateObs equality")
+	ps = CarStateObs[]
+	push!(ps,CarStateObs((1,1),3,0))
+	push!(ps,CarStateObs((1,1),5,0))
+	push!(ps,CarStateObs((1,1),3,1))
+	push!(ps,CarStateObs((1,2),3,0))
+	push!(ps,CarStateObs((2,1),3,0))
+	
+	test_equality("CarState",ps)
+	
+end
+
+function test_carstateobs_hashing()
+	#println("\t\tTesting CarStateObs hashing")
+	ps = CarStateObs[]
+	push!(ps,CarStateObs((1,1),3,0))
+	push!(ps,CarStateObs((1,1),5,0))
+	push!(ps,CarStateObs((1,1),3,1))
+	push!(ps,CarStateObs((1,2),3,0))
+	push!(ps,CarStateObs((2,1),3,0))
+	
+	test_hashing("CarStateObs",ps)
 end
 
 function test_MLState_creation()
 	println("\t\tTesting MLState creation")
+	#nothing to do here--no constructors to test
 end
 
 function test_MLState_equality()
-	println("\t\tTesting MLState equality")
+	#println("\t\tTesting MLState equality")
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	cs = CarState[]
+	push!(cs,CarState((1,1),3,0,bs[1]))
+	push!(cs,CarState((1,1),3,0,bs[2]))
+	push!(cs,CarState((1,1),5,0,bs[1]))
+	push!(cs,CarState((1,1),3,1,bs[1]))
+	push!(cs,CarState((1,2),3,0,bs[1]))
+	push!(cs,CarState((2,1),3,0,bs[1]))
+	
+	ps = MLState[]
+	push!(ps,MLState(2,5,cs[1:1])
+	push!(ps,MLState(3,5,cs[1:1])
+	push!(ps,MLState(2,4,cs[1:1])
+	push!(ps,MLState(2,5,cs[1:2])
+	
+	test_equality("MLState",ps)
 end
 
 function test_MLState_hashing()
-	println("\t\tTesting MLState hashing")
+	#println("\t\tTesting MLState hashing")
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	cs = CarState[]
+	push!(cs,CarState((1,1),3,0,bs[1]))
+	push!(cs,CarState((1,1),3,0,bs[2]))
+	push!(cs,CarState((1,1),5,0,bs[1]))
+	push!(cs,CarState((1,1),3,1,bs[1]))
+	push!(cs,CarState((1,2),3,0,bs[1]))
+	push!(cs,CarState((2,1),3,0,bs[1]))
+	
+	ps = MLState[]
+	push!(ps,MLState(2,5,cs[1:1])
+	push!(ps,MLState(3,5,cs[1:1])
+	push!(ps,MLState(2,4,cs[1:1])
+	push!(ps,MLState(2,5,cs[1:2])
+	
+	test_hashing("MLState",ps)
 end
 
 function test_MLAction_creation()
 	println("\t\tTesting MLAction creation")
-	as = [MLAction(x[1],x[2]) for x in product([-1;0;1],[-1;0;1])]
+	#nothing to do here--no constructors to test
+	#as = [MLAction(x[1],x[2]) for x in product([-1;0;1],[-1;0;1])]
 end
 
 function test_MLAction_equality()
@@ -242,14 +340,43 @@ end
 
 function test_MLObs_creation()
 	println("\t\tTesting MLObs creation")
+	#nothing to do here--no constructors to test
 end
 
 function test_MLObs_equality()
-	println("\t\tTesting MLObs equality")
+	#println("\t\tTesting MLObs equality")
+	cs = CarStateObs[]
+	push!(cs,CarStateObs((1,1),3,0))
+	push!(cs,CarStateObs((1,1),5,0))
+	push!(cs,CarStateObs((1,1),3,1))
+	push!(cs,CarStateObs((1,2),3,0))
+	push!(cs,CarStateObs((2,1),3,0))
+	
+	ps = MLObs[]
+	push!(ps,MLObs(2,5,cs[1:1])
+	push!(ps,MLObs(3,5,cs[1:1])
+	push!(ps,MLObs(2,4,cs[1:1])
+	push!(ps,MLObs(2,5,cs[1:2])
+	
+	test_equality("MLObs",ps)
 end
 
 function test_MLObs_hashing()
 	println("\t\tTesting MLObs hashing")
+	cs = CarStateObs[]
+	push!(cs,CarStateObs((1,1),3,0))
+	push!(cs,CarStateObs((1,1),5,0))
+	push!(cs,CarStateObs((1,1),3,1))
+	push!(cs,CarStateObs((1,2),3,0))
+	push!(cs,CarStateObs((2,1),3,0))
+	
+	ps = MLObs[]
+	push!(ps,MLObs(2,5,cs[1:1])
+	push!(ps,MLObs(3,5,cs[1:1])
+	push!(ps,MLObs(2,4,cs[1:1])
+	push!(ps,MLObs(2,5,cs[1:2])
+	
+	test_hashing("MLObs",ps)
 end
 
 function test_MLPOMDP_creation()
@@ -259,7 +386,8 @@ end
 
 function test_n_state()
 	println("\t\tTesting n_states")
-	p = MLPOMDP(nb_col=4,nb_cars=1,col_length=10)
+	p = MLPOMDP(nb_cars=1,col_length=10)
+	p.nb_col = 4
 	p.phys_param.nb_vel_bins = 8
 	assert(n_states(p) == (4*8)*(4*10*8*3*9))
 	#idk if its worht it to do more
@@ -267,7 +395,8 @@ end
 
 function test_n_observations()
 	println("\t\tTesting n_observations")
-	p = MLPOMDP(nb_col=4,nb_cars=1,col_length=10)
+	p = MLPOMDP(nb_cars=1,col_length=10)
+	p.nb_col = 4
 	p.phys_param.nb_vel_bins = 8
 	assert(n_observations(p) == (4*8)*(4*10*8*3))
 end
@@ -282,6 +411,9 @@ function test_pomdp_types()
 	test_carstate_creation()
 	test_carstate_equality()
 	test_carstate_hashing()
+	test_carstateobs_creation()
+	test_carstateobs_equality()
+	test_carstateobs_hashing()
 	test_MLState_creation()
 	test_MLState_equality()
 	test_MLState_hashing()
@@ -325,7 +457,7 @@ end
 
 ##TODO: indexing and other helper functions testing
 
-function test_pomdp()
+function test_pomdp_model()
 	println("\tTesting POMDP Model Units...")
 	test_observations()
 	test_states()
@@ -338,10 +470,14 @@ end
 ##Crashing
 include(joinpath("..","src","crash.jl"))
 
+function test_cross2d()
+	println("\t\tTesting cross2d")
+end
+
 function test_line_segment_intersect()
 	println("\t\tTesting line_segment_intersect")
-	X = [[0.;0.],[2.;0.],[2.;2.],[0;2.]]
-	Y = [[1.;1.],[3.;1.],[3.;3.],[1.;3.]]
+	X = Array{Float64,1}[[0.;0.],[2.;0.],[2.;2.],[0;2.]]
+	Y = Array{Float64,1}[[1.;1.],[3.;1.],[3.;3.],[1.;3.]]
 	assert(!line_segment_intersect(X[1],X[2],Y[1],Y[2]))
 	assert(!line_segment_intersect(X[1],X[2],Y[2],Y[3]))
 	assert(!line_segment_intersect(Y[1],Y[2],X[1],X[2]))
@@ -368,24 +504,24 @@ end
 function test_poly_intersect()
 	println("\t\tTesting poly_intersect")
 	#CASE: no intersection
-	X = [[0.;0.],[1.;0.],[1.;1.],[0;1.]]
-	Y = [[3.;3.],[4.;3.],[4.;4.],[3.;4.]]
+	X = Array{Float64,1}[[0.;0.],[1.;0.],[1.;1.],[0;1.]]
+	Y = Array{Float64,1}[[3.;3.],[4.;3.],[4.;4.],[3.;4.]]
 	assert(!poly_intersect(poly_to_line_segments(X),poly_to_line_segments(Y)))
-	#CASE: intersect at segments
-	X = [[0.;0.],[2.;0.],[2.;2.],[0;2.]]
-	Y = [[1.;1.],[3.;1.],[3.;3.],[1.;3.]]
+	#CASE: intersect at segments --not working
+	X = Array{Float64,1}[[0.;0.],[2.;0.],[2.;2.],[0;2.]]
+	Y = Array{Float64,1}[[1.;1.],[3.;1.],[3.;3.],[1.;3.]]
 	assert(poly_intersect(poly_to_line_segments(X),poly_to_line_segments(Y)))
-	#CASE: one inside other
-	X = [[0.;0.],[3.;0.],[3.;3.],[0;3.]]
-	Y = [[1.;1.],[2.;1.],[2.;2.],[1.;2.]]
+	#CASE: one inside other --not supported yet; will fail test!
+	X = Array{Float64,1}[[0.;0.],[3.;0.],[3.;3.],[0;3.]]
+	Y = Array{Float64,1}[[1.;1.],[2.;1.],[2.;2.],[1.;2.]]
 	assert(poly_intersect(poly_to_line_segments(X),poly_to_line_segments(Y)))
 	#CASE: same poly
-	X = [[0.;0.],[2.;0.],[2.;2.],[0;2.]]
-	Y = [[0.;0.],[2.;0.],[2.;2.],[0;2.]]
+	X = Array{Float64,1}[[0.;0.],[2.;0.],[2.;2.],[0;2.]]
+	Y = Array{Float64,1}[[0.;0.],[2.;0.],[2.;2.],[0;2.]]
 	assert(poly_intersect(poly_to_line_segments(X),poly_to_line_segments(Y)))
 	#CASE: same with 1d offset
-	X = [[0.;0.],[2.;0.],[2.;2.],[0;2.]]
-	Y = [[1.;0.],[3.;0.],[3.;2.],[1;2.]]
+	X = Array{Float64,1}[[0.;0.],[2.;0.],[2.;2.],[0;2.]]
+	Y = Array{Float64,1}[[1.;0.],[3.;0.],[3.;2.],[1;2.]]
 	assert(poly_intersect(poly_to_line_segments(X),poly_to_line_segments(Y)))
 	#And permutations of the above
 	##TODO
