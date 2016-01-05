@@ -2,7 +2,7 @@
 #a separate file for all the crashing stuff
 
 function line_segment_intersect(p::Array{Float64,1},pr::Array{Float64,1},q::Array{Float64,1},qs::Array{Float64,1})
-	if (length(p) != length(q)) || (length(p) != length(pr)) || length(q) != length(qs))
+	if (length(p) != length(q)) || (length(p) != length(pr)) || (length(q) != length(qs))
 		error("Error: inconsistent dimensionality")
 	end
 	

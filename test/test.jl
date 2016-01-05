@@ -1,13 +1,14 @@
 #test.jl
 #a bunch of unit tests for all the functions and types for the Multilane POMDP
 
+import Base.==
 using Base.Test
 
 ##############
 ##UNIT TESTS##
 ##############
 
-function test_hashing(s::String,ps::Array{Any,1})
+function test_hashing(s::AbstractString,ps)
 	println("\t\tTesting $s Hashing")
 	if length(ps) < 2
 		error("Make More objects for testing $s hashing")
@@ -21,7 +22,7 @@ function test_hashing(s::String,ps::Array{Any,1})
 	assert(get(d1,p1,0) == 1)
 end
 
-function test_equality(s::String,ps::Array{Any,1})
+function test_equality(s::AbstractString,ps)
 	println("\t\tTesting $s Equality")
 	if length(ps) < 3
 		error("Make More objects for testing $s equality")
@@ -105,7 +106,7 @@ function test_mobil_creation()
 	p1 = MOBILParam()
 	p2 = MOBILParam(p=0.5)
 	p3 = MOBILParam(b_safe=5.,a_thr=0.3)
-	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]
+	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]]
 end
 
 function test_mobil_equality()
@@ -113,7 +114,7 @@ function test_mobil_equality()
 	p1 = MOBILParam()
 	p2 = MOBILParam(p=0.5)
 	p3 = MOBILParam(b_safe=5.,a_thr=0.3)
-	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]
+	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]]
 	test_equality("MOBIL",ps)
 	assert(p1 == p1)
 	assert(p1 != p2)
@@ -127,7 +128,7 @@ function test_mobil_hashing()
 	p1 = MOBILParam()
 	p2 = MOBILParam(p=0.5)
 	p3 = MOBILParam(b_safe=5.,a_thr=0.3)
-	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]
+	ps = [MobilParam(s) for s in ["cautious";"normal";"aggressive"]]
 	test_hashing("MOBIL",ps)
 end
 
@@ -177,6 +178,13 @@ function test_mobil()
 end
 
 ##POMDP Types
+#Convenience abstract types to remove dependence on external packages for hte purposes of testing
+abstract State
+abstract Action
+abstract Observation
+abstract POMDP
+abstract AbstractSpace
+abstract AbstractDistribution
 include(joinpath("..","src","ML_types.jl"))
 function test_behavior_model_creation()
 	println("\t\tTesting BehaviorModel creation")
@@ -219,16 +227,16 @@ end
 
 function test_MLAction_creation()
 	println("\t\tTesting MLAction creation")
-	as = [MLAction(x[1],x[2]) for x in product([-1;0,1],[-1;0;1])]
+	as = [MLAction(x[1],x[2]) for x in product([-1;0;1],[-1;0;1])]
 end
 
 function test_MLAction_equality()
-	as = [MLAction(x[1],x[2]) for x in product([-1;0,1],[-1;0;1])]
+	as = [MLAction(x[1],x[2]) for x in product([-1;0;1],[-1;0;1])]
 	test_equality("MLAction",as)
 end
 
 function test_MLAction_hashing()
-	as = [MLAction(x[1],x[2]) for x in product([-1;0,1],[-1;0;1])]
+	as = [MLAction(x[1],x[2]) for x in product([-1;0;1],[-1;0;1])]
 	test_hashing("MLAction",as)
 end
 
@@ -353,7 +361,7 @@ end
 
 function poly_to_line_segments(X::Array{Array{Float64,1}})
 	X_ = [hcat(X[i],X[i+1]) for i=1:(length(X)-1)]
-	push!(X_,hcat(X[end],X[1])
+	push!(X_,hcat(X[end],X[1]))
 	return X_
 end
 

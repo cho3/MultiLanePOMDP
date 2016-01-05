@@ -19,10 +19,10 @@ immutable MOBILParam
 	end
 end #MOBILParam
 ==(a::MOBILParam,b::MOBILParam) = (a.p==b.p) && (a.b_safe==b.b_safe) &&(a.a_thr == b.a_thr)
-Base.hash(a::MOBILParam,h::Uint64=zero(Uint64)) = hash(a.p,hash(a.b_safe,hash(a.a_thr,h)))
+Base.hash(a::MOBILParam,h::UInt64=zero(UInt64)) = hash(a.p,hash(a.b_safe,hash(a.a_thr,h)))
 
 function MOBILParam(s::AbstractString)
-	typedict = ["cautious"=>0.5,"normal"=>0.25,"aggressive"=>0.0]
+	typedict = Dict{AbstractString,Float64}("cautious"=>0.5,"normal"=>0.25,"aggressive"=>0.0)
 	p = get(typedict,s,-1.)
 	assert(p >= 0.)
 	return MOBILParam(p=p)
@@ -36,10 +36,10 @@ immutable BehaviorModel
 	rationality::Float64 
 end
 ==(a::BehaviorModel,b::BehaviorModel) = (a.p_idm==b.p_idm) && (a.p_mobil==b.p_mobil) &&(a.rationality == b.rationality)
-Base.hash(a::BehaviorModel,h::Uint64=zero(Uint64)) = hash(a.p_idm,hash(a.p_mobil,hash(a.rationality,h)))
+Base.hash(a::BehaviorModel,h::UInt64=zero(UInt64)) = hash(a.p_idm,hash(a.p_mobil,hash(a.rationality,h)))
 
 function BehaviorModel(s::AbstractString,v0::Float64,s0::Float64)
-	typedict = ["cautious"=>0.95,"normal"=>0.9,"aggressive"=>0.85] #rationality
+	typedict = Dict{AbstractString,Float64}("cautious"=>0.95,"normal"=>0.9,"aggressive"=>0.85) #rationality
 	return BehaviorModel(IDMParam(s,v0,s0),MOBILParam(s),typedict[s])
 end
 
@@ -50,7 +50,7 @@ type CarState
 	behavior::BehaviorModel
 end #carstate
 ==(a::CarState,b::CarState) = (a.pos==b.pos) && (a.vel==b.vel) &&(a.lane_change == b.lane_change)&&(a.behavior==b.behavior)
-Base.hash(a::CarState,h::Uint64=zero(Uint64)) = hash(a.vel,hash(a.pos,hash(a.lane_change,hash(a.behavior,h))))
+Base.hash(a::CarState,h::UInt64=zero(UInt64)) = hash(a.vel,hash(a.pos,hash(a.lane_change,hash(a.behavior,h))))
 
 type CarNeighborhood
 	ahead_dist::Dict{Int,Float64} #(-1,0,1) for right,self, and left lane
@@ -64,7 +64,7 @@ CarNeighborhood(x,y) = CarNeighborhood(x,x,x,x,y,y)
 CarNeighborhood() = CarNeighborhood(Dict{Int,Float64}(),Dict{Int,IDMParam}())
 
 
-function get_adj_cars(p::MLPOMDP,arr::Array{CarState,1},x::CarState)
+function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},x::CarState)
 	##TODO: update CarNeighborhood with stuff for the IDM parameters
 	neighborhood = CarNeighborhood()
 
@@ -74,8 +74,8 @@ function get_adj_cars(p::MLPOMDP,arr::Array{CarState,1},x::CarState)
 		if abs(dlane) > 1 #not in or adjacent to current lane
 			break
 		end
-		dist = POSITIONS[pos[1]]-POSITIONS[x.pos[1]]
-		dv = VELOCITIES[vel]-VELOCITIES[x.vel] #derivative of dist
+		dist = p.POSITIONS[pos[1]]-p.POSITIONS[x.pos[1]]
+		dv = p.VELOCITIES[vel]-p.VELOCITIES[x.vel] #derivative of dist
 		if dist > 0 && dist - l_car < get(neighborhood.ahead_dist,dlane,1000.)
 			neighborhood.ahead_dist[dlane] = dist - l_car
 			neighborhood.ahead_dv[dlane] = dv

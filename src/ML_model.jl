@@ -1,6 +1,6 @@
 #ML_model.jl
 #a separate file for hte ML pomdp formulation
-
+##TODO: fix long dictionary comprehension on lines 224, 257 and 316
 function observations(pomdp::MLPOMDP)
 	
 	#generate all partial states for a single environment car
@@ -29,7 +29,7 @@ function observations(pomdp::MLPOMDP)
 		#loop over own car stuff
 		for self_pos in 1:pomdp.nb_col
 			for self_vel in 1:length(VELOCITIES)
-				push!(O,MLState(agent_pos,agent_vel,CarStateObs[e_s for e_s in env_state])
+				push!(O,MLState(agent_pos,agent_vel,CarStateObs[e_s for e_s in env_state]))
 			end
 		end
 	end
@@ -72,7 +72,7 @@ function states(pomdp::POMDP)
 		#loop over own car stuff
 		for self_pos in 1:pomdp.nb_col
 			for self_vel in 1:length(VELOCITIES)
-				push!(S,MLState(agent_pos,agent_vel,CarState[e_s for e_s in env_state])
+				push!(S,MLState(agent_pos,agent_vel,CarState[e_s for e_s in env_state]))
 			end
 		end
 	end
@@ -125,8 +125,8 @@ function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	cost = 0.
 	if a.vel > 0
 		cost += pomdp.accel_cost*a.vel
-	elsif a.vel < 0
-		cost -= pomdp.decel_csot*a.vel
+	elseif a.vel < 0
+		cost -= pomdp.decel_cost*a.vel
 	end
 	if abs(a.lane_change) != 0
 		cost += pomdp.lanechange_cost
@@ -135,7 +135,7 @@ function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	
 	return cost #
 end
-reward(pomdp::SMLPOMDP,s::SMLState,a::SMLAction,sp::SMLState) = reward(pomdp,sp,a) 
+reward(pomdp::MLPOMDP,s::MLState,a::MLAction,sp::MLState) = reward(pomdp,sp,a) 
 
 type MLStateDistr <: AbstractDistribution
 	d::Dict{MLState,Float64} #e.g. sparse vector
@@ -221,7 +221,8 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 		
 			comp_probs = product(pos_probs,lane_probs,vel_probs,lanechange_probs)
 			#position, velocity, and lane changing are uncoupled
-			next_state_probs = Dict{CarState,Float64}(CarState((x[1][1],x[2][1],),x[3][1],x[4][1],behavior)=>x[1][2]*x[2][2]*x[3][2]*x[4][2] for x in comp_probs)
+			next_state_probs = Dict{CarState,Float64}()
+			#next_state_probs = Dict{CarState,Float64}[CarState((x[1][1],x[2][1],),x[3][1],x[4][1],behavior)=>x[1][2]*x[2][2]*x[3][2]*x[4][2] for x in comp_probs]
 		else #if pos[1] <= 0
 			###ENCOUNTER MODEL
 			##position and velocities are coupled
@@ -253,8 +254,8 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 	
 	##TODO: enumerate over agent car stuff
 	#there is either one or two possible next agent velocities if we allow the agent car to follow IDM--the other option is to just have it increment its velocity in reasonable, deterministic increments
-	
-	d = Dict{MLState,Float64}(MLState(agent_lane_,agent_vel_,CarState[y[1] for y in env])=>prod([x[2] for x in env]) for env in env_car_next_states)
+	d = Dict{MLState,Float64}()
+	#d = Dict{MLState,Float64}(MLState(agent_lane_,agent_vel_,CarState[y[1] for y in env])=>prod([x[2] for x in env]) for env in env_car_next_states)
 	
 	#for each dictionary, calculate composite probability, and then iterate over all possibilities, and calculate the product of probabilities and add to dictionary
 	
@@ -270,7 +271,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 	return d
 end
 
-type MLObsDistr <:Abstract Distribution
+type MLObsDistr <:AbstractDistribution
 	d::Dict{MLObs,Float64} #e.g. sparse vector
 end
 pdf(d::MLObsDistr,o::MLObs) = get(d.d,o,0.)
@@ -311,7 +312,8 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 	end
 	##behavior model unobserved
 
-	distr = Dict{MLObs,Float64}(MLState(agent_lane_,agent_vel_,CarStateObs[y[1] for y in env])=>prod([x[2] for x in env]) for env in carstate_probs)
+	distr = Dict{MLObs,Float64}()
+	#distr = Dict{MLObs,Float64}(MLState(agent_lane_,agent_vel_,CarStateObs[y[1] for y in env])=>prod([x[2] for x in env]) for env in carstate_probs)
 	
 	if abs(sum(values(distr))-1.) > 0.0001
 		println(d.d)
