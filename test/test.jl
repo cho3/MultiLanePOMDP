@@ -222,7 +222,7 @@ end
 function test_carstate_equality()
 	#println("\t\tTesting CarState equality")
 	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
-	bs = CarState[]
+	ps = CarState[]
 	push!(ps,CarState((1,1),3,0,bs[1]))
 	push!(ps,CarState((1,1),3,0,bs[2]))
 	push!(ps,CarState((1,1),5,0,bs[1]))
@@ -294,10 +294,10 @@ function test_MLState_equality()
 	push!(cs,CarState((2,1),3,0,bs[1]))
 	
 	ps = MLState[]
-	push!(ps,MLState(2,5,cs[1:1])
-	push!(ps,MLState(3,5,cs[1:1])
-	push!(ps,MLState(2,4,cs[1:1])
-	push!(ps,MLState(2,5,cs[1:2])
+	push!(ps,MLState(2,5,cs[1:1]))
+	push!(ps,MLState(3,5,cs[1:1]))
+	push!(ps,MLState(2,4,cs[1:1]))
+	push!(ps,MLState(2,5,cs[1:2]))
 	
 	test_equality("MLState",ps)
 end
@@ -314,10 +314,10 @@ function test_MLState_hashing()
 	push!(cs,CarState((2,1),3,0,bs[1]))
 	
 	ps = MLState[]
-	push!(ps,MLState(2,5,cs[1:1])
-	push!(ps,MLState(3,5,cs[1:1])
-	push!(ps,MLState(2,4,cs[1:1])
-	push!(ps,MLState(2,5,cs[1:2])
+	push!(ps,MLState(2,5,cs[1:1]))
+	push!(ps,MLState(3,5,cs[1:1]))
+	push!(ps,MLState(2,4,cs[1:1]))
+	push!(ps,MLState(2,5,cs[1:2]))
 	
 	test_hashing("MLState",ps)
 end
@@ -353,10 +353,10 @@ function test_MLObs_equality()
 	push!(cs,CarStateObs((2,1),3,0))
 	
 	ps = MLObs[]
-	push!(ps,MLObs(2,5,cs[1:1])
-	push!(ps,MLObs(3,5,cs[1:1])
-	push!(ps,MLObs(2,4,cs[1:1])
-	push!(ps,MLObs(2,5,cs[1:2])
+	push!(ps,MLObs(2,5,cs[1:1]))
+	push!(ps,MLObs(3,5,cs[1:1]))
+	push!(ps,MLObs(2,4,cs[1:1]))
+	push!(ps,MLObs(2,5,cs[1:2]))
 	
 	test_equality("MLObs",ps)
 end
@@ -371,10 +371,10 @@ function test_MLObs_hashing()
 	push!(cs,CarStateObs((2,1),3,0))
 	
 	ps = MLObs[]
-	push!(ps,MLObs(2,5,cs[1:1])
-	push!(ps,MLObs(3,5,cs[1:1])
-	push!(ps,MLObs(2,4,cs[1:1])
-	push!(ps,MLObs(2,5,cs[1:2])
+	push!(ps,MLObs(2,5,cs[1:1]))
+	push!(ps,MLObs(3,5,cs[1:1]))
+	push!(ps,MLObs(2,4,cs[1:1]))
+	push!(ps,MLObs(2,5,cs[1:2]))
 	
 	test_hashing("MLObs",ps)
 end
