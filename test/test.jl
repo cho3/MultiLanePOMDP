@@ -386,18 +386,18 @@ end
 
 function test_n_state()
 	println("\t\tTesting n_states")
-	p = MLPOMDP(nb_cars=1,col_length=10)
+	pp = PhysicalParam(2,nb_vel_bins=8,lane_length=2.5) #2.5=>10
+	p = MLPOMDP(nb_cars=1,phys_param=pp)
 	p.nb_col = 4
-	p.phys_param.nb_vel_bins = 8
 	assert(n_states(p) == (4*8)*(4*10*8*3*9))
 	#idk if its worht it to do more
 end
 
 function test_n_observations()
 	println("\t\tTesting n_observations")
-	p = MLPOMDP(nb_cars=1,col_length=10)
+	pp = PhysicalParam(2,nb_vel_bins=8,lane_length=2.5) #2.5=>10
+	p = MLPOMDP(nb_cars=1,phys_param=pp)
 	p.nb_col = 4
-	p.phys_param.nb_vel_bins = 8
 	assert(n_observations(p) == (4*8)*(4*10*8*3))
 end
 
@@ -432,19 +432,50 @@ end
 include(joinpath("..","src","ML_model.jl"))
 
 function test_observations()
+	##Currently generating 3672 vs 3456 calculated
 	println("\t\tTesting Observation Space Creation")
+	nb_lanes = 2 
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=2.) #2.=>col_length=8
+	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
+	O = observations(p)
+	assert(length(O) == n_observations(p))
+	#assuming == and hash works, then everything should be distinct
+	assert(length(unique(O)) == length(O))
 end
 
 function test_states()
+	##Currently generating 33840 vs 31104 generated
 	println("\t\tTesting State Space Creation")
+	nb_lanes = 2
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=2.) #2.=>col_length=8
+	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
+	S = states(p)
+	assert(length(S) == n_states(p))
+	#assuming == and hash works, then everything should be distinct
+	assert(length(unique(S)) == length(S))
 end
 
 function test_reward()
 	println("\t\tTesting Reward Model")
+	#TODO: test that acting incurs costs, and not incurs no costs
+	
+	#TODO: test that crashing incurs crash costs, including different actions
+	
+	#Case: cars occupy same space
+	#CASE: cars intersect; vertically
+	#CASE: cars intersect; horizontally (across lanes)
+	#CASE: diagonal intersection
+	#CASE: cars will pass through one another during the next time step
 end
 
 function test_actions()
 	println("\t\tTesting Action Space Creation")
+	p = MLPOMDP()
+	A = actions(p)
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	s = MLState(2,5,CarState[CarState((1,1),3,0,bs[1])])
+	A_ = actions(p,s) #check the other signature
+	assert(domain(A_) == domain(A))
 end
 
 function test_transition()
@@ -459,12 +490,12 @@ end
 
 function test_pomdp_model()
 	println("\tTesting POMDP Model Units...")
-	test_observations()
 	test_states()
 	test_reward()
 	test_actions()
 	test_transition()
 	test_observe()
+	test_observations()
 end
 
 ##Crashing
@@ -533,6 +564,7 @@ end
 
 function test_crash()
 	println("\tTesting Crashing")
+	test_cross2d()
 	test_line_segment_intersect()
 	test_poly_intersect()
 	test_is_crash()

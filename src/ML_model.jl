@@ -6,9 +6,9 @@ function observations(pomdp::MLPOMDP)
 	#generate all partial states for a single environment car
 	env_car_states = CarStateObs[]
 	
-	for x in 0:length(POSITIONS)
+	for x in 0:length(pomdp.phys_param.POSITIONS)
 		for y in 1:pomdp.nb_col
-			for v in 1:length(VELOCITIES)
+			for v in 1:length(pomdp.phys_param.VELOCITIES)
 				for lane_change in [-1; 0; 1]
 					#collapse not in the environment into a single state
 					if (x == 0) && (y != 1) && (v != 1) && (lane_change != 0) 
@@ -28,8 +28,8 @@ function observations(pomdp::MLPOMDP)
 	for env_state in car_states
 		#loop over own car stuff
 		for self_pos in 1:pomdp.nb_col
-			for self_vel in 1:length(VELOCITIES)
-				push!(O,MLState(agent_pos,agent_vel,CarStateObs[e_s for e_s in env_state]))
+			for self_vel in 1:length(pomdp.phys_param.VELOCITIES)
+				push!(O,MLObs(self_pos,self_vel,CarStateObs[e_s for e_s in env_state]))
 			end
 		end
 	end
@@ -47,13 +47,13 @@ function states(pomdp::POMDP)
 	env_car_states = CarState[]
 	#behaviors = BehaviorModel[BehaviorModel(x[1],x[2]) for x in product(["cautious","normal","aggressive"],[v_slow;v_med;v_fast])]
 	
-	for x in 0:length(POSITIONS)
+	for x in 0:length(pomdp.phys_param.POSITIONS)
 		for y in 1:pomdp.nb_col
-			for v in 1:length(VELOCITIES)
+			for v in 1:length(pomdp.phys_param.VELOCITIES)
 				for lane_change in [-1; 0; 1]
-					for behavior in BEHAVIORS
+					for behavior in pomdp.BEHAVIORS
 						#collapse not in the environment into a single state
-						if (x == 0) && (y != 1) && (v != 1) && (lane_change != 0) && (behavior != BEHAVIORS[1])
+						if (x == 0) && (y != 1) && (v != 1) && (lane_change != 0) && (behavior != pomdp.BEHAVIORS[1])
 							continue
 						end
 						push!(env_car_states,CarState((x,y,),v,lane_change,behavior))
@@ -71,14 +71,14 @@ function states(pomdp::POMDP)
 	for env_state in car_states
 		#loop over own car stuff
 		for self_pos in 1:pomdp.nb_col
-			for self_vel in 1:length(VELOCITIES)
-				push!(S,MLState(agent_pos,agent_vel,CarState[e_s for e_s in env_state]))
+			for self_vel in 1:length(pomdp.phys_param.VELOCITIES)
+				push!(S,MLState(self_pos,self_vel,CarState[e_s for e_s in env_state]))
 			end
 		end
 	end
 	if(length(S) != n_states(pomdp))
 		println("Size of generated state space: $(length(S))")
-		println("Calculated state space size: $(n_state(pomdp))")
+		println("Calculated state space size: $(n_states(pomdp))")
 		error("Error: analytical number of states does not agree with generated number of states")
 	end
 	

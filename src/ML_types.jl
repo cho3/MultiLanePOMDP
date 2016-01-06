@@ -67,7 +67,6 @@ type MLPOMDP <: POMDP
 	BEHAVIORS::Array{BehaviorModel,1}
 	NB_PHENOTYPES::Int
 	function MLPOMDP(;nb_lanes::Int=2,
-					col_length::Int=48,
 					nb_cars::Int=1,
 					discount::Float64=0.99,
 					r_crash::Float64=-100000.,
@@ -78,7 +77,7 @@ type MLPOMDP <: POMDP
 		
 		self = new()
 		self.nb_col = convert(Int,round((phys_param.w_lane/phys_param.y_interval)*nb_lanes-1))
-		self.col_length = col_length
+		self.col_length = length(phys_param.POSITIONS)
 		self.nb_cars = nb_cars
 		#behaviors...
 		self.r_crash = r_crash

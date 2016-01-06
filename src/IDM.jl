@@ -36,7 +36,7 @@ type PhysicalParam
 							nb_vel_bins::Int=100,
 							nb_env_cars::Int=1,
 							lane_length::Float64=12.,
-							NB_DIR::Int=3,)
+							NB_DIR::Int=3)
 		self = new()
 		self.dt = dt
 		self.w_car = w_car
