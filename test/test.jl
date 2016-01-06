@@ -3,11 +3,26 @@
 
 import Base.==
 import Base.length
+import Base.assert
 using Base.Test
+
+##TODO: a bunch of error checking and associated tests for type creation (e.g. making sure things are in bounds)
 
 ##############
 ##UNIT TESTS##
 ##############
+
+function assert(expr,val)
+	if expr != val
+		error("Assertion failed: expected $val, got $expr")
+	end
+end
+
+function assert(expr,val,flag::Bool)
+	if expr == val
+		error("Assertion failed: expected NOT $val, got $expr")
+	end
+end
 
 function test_hashing(s::AbstractString,ps)
 	##TODO: make a more comprehensive test that uses more of the created objects
@@ -18,10 +33,10 @@ function test_hashing(s::AbstractString,ps)
 	d1 = Dict{typeof(ps[1]),Int}()
 	d1[ps[1]] = 1
 	d1[ps[1]] = 1
-	assert(length(d1) == 1)
+	assert(length(d1),1)
 	d2 = Dict{typeof(ps[1]),Int}([p=>3 for p in [ps[2];ps[2]]])
-	assert(length(d2) == 1)
-	assert(get(d1,ps[1],0) == 1)
+	assert(length(d2),1)
+	assert(get(d1,ps[1],0),1)
 end
 
 function test_equality(s::AbstractString,ps)
@@ -32,10 +47,10 @@ function test_equality(s::AbstractString,ps)
 	for i = 1:length(ps)
 		for j = 1:length(ps)
 			if i == j
-				assert(ps[i]==ps[j])
+				assert(ps[i],ps[j])
 			else
-				assert(ps[i] != ps[j])
-				assert(ps[j] != ps[i])
+				assert(ps[i],ps[j],true)
+				assert(ps[j],ps[i],true)
 			end
 		end
 	end
@@ -152,29 +167,72 @@ end
 
 function test_car_neighborhood_equality()
 	println("\t\tTesting Car Neighborhood Equality")
+	#Nothing to do--such functions weren't created
 end
 
 function test_car_neighborhood_hashing()
 	println("\t\tTesting Car Neighborhood Hashing")
+	#nothing to do--such functions weren't created
 end
+
 function test_get_adj_cars()
 	println("\t\tTesting get_adj_cars")
+	##TODO: assertions
+	nb_lanes = 3
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=12.)
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
 	#CASE: just agent car
-	
+	cs = CarState[CarState((24,3,),3,0,bs[1])]
+	#just make sure it doesn't explode--this should be handled by get_mobil_lane_change
+	get_adj_cars(pp,cs,1)
 	#CASE: nobody to the left
-	
+	cs = CarState[CarState((48,3,),3,0,bs[1]),CarState((24,3,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((48,1,),3,0,bs[1]),CarState((1,1,),3,0,bs[1])]
+	get_adj_cars(pp,cs,2)
 	#CASE: nobody to the right
-	
+	cs = CarState[CarState((48,3,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((24,3,),3,0,bs[1]),CarState((48,5,),3,0,bs[1]),CarState((1,5,),3,0,bs[1])]
+	get_adj_cars(pp,cs,3)
 	#CASE: no one ahead
-	
+	cs = CarState[CarState((1,5,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((1,5,),3,0,bs[1]),CarState((24,3,),3,0,bs[1])]
+	get_adj_cars(pp,cs,4)
 	#CASE: no one behind
-	
+	CarState[CarState((48,5,),3,0,bs[1]),CarState((48,3,),3,0,bs[1]),CarState((48,5,),3,0,bs[1]),CarState((24,3,),3,0,bs[1])]
+	get_adj_cars(pp,cs,4)
 	#CASE: full house
-	
+	cs = CarState[CarState((48,3,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((48,1,),3,0,bs[1]),CarState((1,1,),3,0,bs[1]),CarState((48,1,),5,0,bs[1]),CarState((1,1,),5,0,bs[1]),CarState((24,3,),3,0,bs[1])]
+	get_adj_cars(pp,cs,7)
 end
 
 function test_get_mobil_lane_change()
 	println("\t\tTesting get_mobil_lane_change")
+	nb_lanes = 2
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=12.)
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	#CASE: it's faster, but there's no space--is this even a real case?
+	#CASE: it's faster and there is space
+	cs = CarState[CarState((48,3,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((44,1,),1,0,BehaviorModel("cautious",27.,4.)),CarState((24,1,),3,0,BehaviorModel("aggressive",35.,4.))]
+	nbhd = get_adj_cars(pp,cs,3)
+	assert(get_mobil_lane_change(pp,cs[3],nbhd),1)
+	#CASE: it's slower and there is space
+	cs = CarState[CarState((48,3,),3,0,BehaviorModel("cautious",31.,4.)),CarState((44,1,),5,0,BehaviorModel("cautious",35.,4.)),CarState((24,1,),5,0,BehaviorModel("aggressive",35.,4.))]
+	nbhd = get_adj_cars(pp,cs,3)
+	assert(get_mobil_lane_change(pp,cs[3],nbhd),0)
+	#CASE: someone is going fast behind me and i'm slow
+	cs = CarState[CarState((1,1,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((24,1,),1,0,BehaviorModel("cautious",27.,4.))]
+	nbhd = get_adj_cars(pp,cs,2)
+	assert(get_mobil_lane_change(pp,cs[2],nbhd),1)
+	###repeat for other side
+	#CASE: it's faster and there is space
+	cs = CarState[CarState((48,1,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((44,1,),31,0,BehaviorModel("cautious",27.,4.)),CarState((24,3,),3,0,BehaviorModel("aggressive",35.,4.))]
+	nbhd = get_adj_cars(pp,cs,3)
+	assert(get_mobil_lane_change(pp,cs[3],nbhd),-1)
+	#CASE: it's slower and there is space
+	cs = CarState[CarState((48,1,),3,0,BehaviorModel("cautious",31.,4.)),CarState((44,3,),5,0,BehaviorModel("cautious",35.,4.)),CarState((24,3,),5,0,BehaviorModel("aggressive",35.,4.))]
+	nbhd = get_adj_cars(pp,cs,3)
+	assert(get_mobil_lane_change(pp,cs[3],nbhd),0)
+	#CASE: someone is going fast behind me and i'm slow
+	cs = CarState[CarState((1,3,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((24,3,),1,0,BehaviorModel("cautious",27.,4.))]
+	nbhd = get_adj_cars(pp,cs,2)
+	assert(get_mobil_lane_change(pp,cs[2],nbhd),-1)
 end
 
 function test_mobil()
@@ -457,13 +515,49 @@ end
 
 function test_reward()
 	println("\t\tTesting Reward Model")
-	#TODO: test that acting incurs costs, and not incurs no costs
+	nb_lanes = 2 
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=12.) #2.=>col_length=8
+	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
 	
-	#TODO: test that crashing incurs crash costs, including different actions
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	
+	#Env Car out of bounds
+	cs_oob = CarState((0,1),1,0,bs[1])
+	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
+	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.))
+	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
+	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.))
+	#env car going at a medium speed in the right lane heading left
+	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	#env car going at a medium speed in the left lane heading right
+	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
+	#env car is just chilling in the right/btwn/lhigh lane
+	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_mchill = CarState((24,1),2,2,BehaviorModel("normal",31.,4.))
+	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
+	
+	#CASE: do nothing = no costs
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,0)) == 0.)
+	#CASE: moving = cost
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(1,0)) == p.accel_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,0)) == p.decel_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,1)) == p.lanechange_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(1,1)) == p.accel_cost + p.lanechange_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,1)) == p.decel_cost + p.lanechange_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(1,-1)) == p.accel_cost + p.lanechange_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,-1)) == p.decel_cost + p.lanechange_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,-1)) == p.lanechange_cost)
 	
 	#Case: cars occupy same space
-	#CASE: cars intersect; vertically
+	assert(reward(p,MLState(1,2,CarState[cs_rchill]),MLAction(0,0)) == p.r_crash)
+	assert(reward(p,MLState(1,2,CarState[cs_mchill]),MLAction(0,0)) == p.r_crash)
+	assert(reward(p,MLState(1,2,CarState[cs_hrchill]),MLAction(0,0)) == p.r_crash)
+	#CASE: cars intersect; vertically (gets railroaded from behind)
+	assert(reward(p,MLState(1,1,CarState[cs_r_fast]),MLAction(-1,0)) == p.r_crash)
+	assert(reward(p,MLState(1,4,CarState[cs_r_slow]),MLAction(1,0)) == p.r_crash)
 	#CASE: cars intersect; horizontally (across lanes)
+	assert(reward(p,MLState(1,2,CarState[cs_rchange]),MLAction(0,1)) == p.r_crash)
+	assert(reward(p,MLState(3,2,CarState[cs_lchange]),MLAction(0,-1)) == p.r_crash)
 	#CASE: diagonal intersection
 	#CASE: cars will pass through one another during the next time step
 end
@@ -560,6 +654,50 @@ end
 
 function test_is_crash()
 	println("\t\tTesting is_crash")
+	nb_lanes = 2 
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=12.) #2.=>col_length=8
+	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
+	
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	
+	#Env Car out of bounds
+	cs_oob = CarState((0,1),1,0,bs[1])
+	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
+	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.))
+	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
+	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.))
+	#env car going at a medium speed in the right lane heading left
+	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	#env car going at a medium speed in the left lane heading right
+	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
+	#env car is just chilling in the right/btwn/lhigh lane
+	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_mchill = CarState((24,1),2,2,BehaviorModel("normal",31.,4.))
+	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
+	
+	##TODO: change these tests borrowed from test_reward to something more meaningful
+	#CASE: do nothing = no costs
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(0,0)))
+	#CASE: moving = cost
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(1,0)))
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,0)))
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(0,1)))
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(1,1)))
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,1)))
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(1,-1)))
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,-1)))
+	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(0,-1)))
+	
+	#Case: cars occupy same space
+	assert(is_crash(p,MLState(1,2,CarState[cs_rchill]),MLAction(0,0)))
+	assert(is_crash(p,MLState(1,2,CarState[cs_mchill]),MLAction(0,0)))
+	assert(is_crash(p,MLState(1,2,CarState[cs_hrchill]),MLAction(0,0)))
+	#CASE: cars intersect; vertically (gets railroaded from behind)
+	assert(is_crash(p,MLState(1,1,CarState[cs_r_fast]),MLAction(-1,0)))
+	assert(is_crash(p,MLState(1,4,CarState[cs_r_slow]),MLAction(1,0)))
+	#CASE: cars intersect; horizontally (across lanes)
+	assert(is_crash(p,MLState(1,2,CarState[cs_rchange]),MLAction(0,1)))
+	assert(is_crash(p,MLState(3,2,CarState[cs_lchange]),MLAction(0,-1)))
 end
 
 function test_crash()

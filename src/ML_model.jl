@@ -175,7 +175,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 	valid_col_bot = Int[1:pomdp.nb_col]
 	
 	env_car_next_states = Array{Dict{CarState,Float64},1}[]
-	for env_car in s.env_cars
+	for (i,env_car) in enumerate(s.env_cars)
 		pos = env_car.pos
 		vel = env_car.vel
 		lane_change = env_car.lane_change
@@ -185,7 +185,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 		#get the leaders and followers for itself and all adjacent lanes somehow
 		if pos[1] > 0
 		
-			neighborhood = get_adj_cars(pomdp,s.env_cars,env_car)
+			neighborhood = get_adj_cars(pomdp,s.env_cars,i)
 		
 			dvel_ms = get_idm_dv(behavior.p_idm,VELOCITIES[vel],neighborhood.ahead_dv[0],neighborhood.ahead_dist[0]) #call idm model
 			vel_inds = rev_1d_interp(VELOCITIES,vel+dvel_ms,behavior.rationality)
@@ -209,14 +209,13 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			else
 				#the something, but with full irrationality probability
 			end
-			
-			lanechange_probs = Dict{Int,Float64}() #placeholder
+			#placeholder
 		
 			lanechange = get_mobil_lane_change(pomdp.phys_param,env_car,neighborhood)
 			lane_change_other = setdiff([-1;0;1],[lane_change])
 			lane_change_probs[lane_change] = behavior.rationality
 			for lanechange in lane_change_other
-				lane_change_probs[lanechange] = (1.-behavior.rationality)/(length(lane_change_other))
+				lanechange_probs[lanechange] = (1.-behavior.rationality)/(length(lane_change_other))
 			end
 		
 			comp_probs = product(pos_probs,lane_probs,vel_probs,lanechange_probs)

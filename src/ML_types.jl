@@ -61,6 +61,9 @@ type MLPOMDP <: POMDP
 	nb_cars::Int
 	behaviors::Array{BehaviorModel,1} #instantiate each behavior phenotype as a static object in inner constructor
 	r_crash::Float64
+	accel_cost::Float64
+	decel_cost::Float64
+	lanechange_cost::Float64
 	fuzz::Float64
 	discount::Float64
 	phys_param::PhysicalParam
@@ -70,6 +73,9 @@ type MLPOMDP <: POMDP
 					nb_cars::Int=1,
 					discount::Float64=0.99,
 					r_crash::Float64=-100000.,
+					accel_cost::Float64=-1.,
+					decel_cost::Float64=-0.5,
+					lanechange_cost::Float64=-2.,
 					fuzz::Float64=0.1,
 					phys_param::PhysicalParam=PhysicalParam(nb_lanes))
 		assert((discount >= 0.) && (discount <= 1.))
@@ -81,6 +87,9 @@ type MLPOMDP <: POMDP
 		self.nb_cars = nb_cars
 		#behaviors...
 		self.r_crash = r_crash
+		self.accel_cost = accel_cost
+		self.decel_cost = decel_cost
+		self. lanechange_cost = lanechange_cost
 		self.discount = discount
 		self.fuzz = fuzz
 		self.phys_param = phys_param

@@ -67,24 +67,30 @@ CarNeighborhood(x,y) = CarNeighborhood(x,x,x,x,y,y)
 CarNeighborhood() = CarNeighborhood(Dict{Int,Float64}(),Dict{Int,IDMParam}())
 
 
-function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},x::CarState)
+function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 	##TODO: update CarNeighborhood with stuff for the IDM parameters
 	neighborhood = CarNeighborhood()
 
-	for car in arr
+	x = arr[i]
+	
+	for (j,car) in enumerate(arr)
+		if i == j
+			break
+		end
 		pos = car.pos
+		vel = car.vel
 		dlane = pos[2]-x.pos[2]
 		if abs(dlane) > 1 #not in or adjacent to current lane
 			break
 		end
 		dist = p.POSITIONS[pos[1]]-p.POSITIONS[x.pos[1]]
 		dv = p.VELOCITIES[vel]-p.VELOCITIES[x.vel] #derivative of dist
-		if dist > 0 && dist - l_car < get(neighborhood.ahead_dist,dlane,1000.)
-			neighborhood.ahead_dist[dlane] = dist - l_car
+		if dist > 0 && dist - p.l_car < get(neighborhood.ahead_dist,dlane,1000.)
+			neighborhood.ahead_dist[dlane] = dist - p.l_car
 			neighborhood.ahead_dv[dlane] = dv
-			neighborhood.ahead_idm[dlane] = car.behavior.p_idm
-		elseif dist < 0 && -1*dist - l_car < get(neighborhood.behind_dist,dlane,1000.)
-			neighborhood.behind_dist[dlane] = -1*dist - l_car
+			neighborhood.ahead_idm[dlane] = car.behavior.p_idm #pointless
+		elseif dist < 0 && -1*dist - p.l_car < get(neighborhood.behind_dist,dlane,1000.)
+			neighborhood.behind_dist[dlane] = -1*dist - p.l_car
 			neighborhood.behind_dv[dlane] = -1*dv
 			neighborhood.behind_idm[dlane] = car.behavior.p_idm
 		end
@@ -94,7 +100,8 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},x::CarState)
 	
 end
 
-function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighorhood::CarNeighborhood)
+function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::CarNeighborhood)
+	#TODO: catch if the parameters don't exist
 
 	#need 6 distances: distance to person behind me, ahead of me
 	#				potential distance to person behind me, ahead of me
@@ -120,14 +127,30 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighorhood::Car
 	a_self_left = get_idm_dv(p_idm_self,dt,v,get(neighborhood.ahead_dv,1,0.),get(neighborhood.ahead_dist,1,1000.))/dt
 	a_self_right = get_idm_dv(p_idm_self,dt,v,get(neighborhood.ahead_dv,-1,0.),get(neighborhood.ahead_dist,-1,1000.))/dt
 	
-	a_follower = get_idm_dv(neighborhood.rear_idm[0],dt,v,get(neighborhood.rear_dv,0,0.),get(neighborhood.rear_dist,0,-1000.))/dt #distance behind is a negative number
-	a_follower_left = get_idm_dv(neighborhood.rear_idm[1],dt,v,get(neighborhood.rear_dv,1,0.)+get(neighborhood.ahead_dv,1,0.),get(neighborhood.rear_dist,1,1000.)+get(neighborhood.ahead_dist,1,1000.)+l_car)/dt
-	a_follower_right = get_idm_dv(neighborhood.rear_idm[-1],dt,v,get(neighborhood.rear_dv,-1,0.)+get(neighborhood.ahead_dv,-1,0.),get(neighborhood.rear_dist,-1,1000.)+get(neighborhood.ahead_dist,-1,1000.)+l_car)/dt
+	if get(neighborhood.rear_idm,0,0.) == 0.
+		a_follower = 0.
+		a_follower_ = 0.
+	else
+		a_follower = get_idm_dv(neighborhood.rear_idm[0],dt,v,get(neighborhood.rear_dv,0,0.),get(neighborhood.rear_dist,0,-1000.))/dt #distance behind is a negative number
+		a_follower_ = get_idm_dv(neighborhood.rear_idm[0],dt,v,get(neighborhood.rear_dv,0,0.)+get(neighborhood.ahead_dv,0,0.),get(neighborhood.rear_dist,0,-1000.)+get(neighborhood.ahead_dist,0,1000.)+l_car)/dt
+	end
 	
-	a_follower_ = get_idm_dv(neighborhood.rear_idm[0],dt,v,get(neighborhood.rear_dv,0,0.)+get(neighborhood.ahead_dv,0,0.),get(neighborhood.rear_dist,0,-1000.)+get(neighborhood.ahead_dist,0,1000.)+l_car)/dt
-	a_follower_left_ = get_idm_dv(neighborhood.rear_idm[1],dt,v,get(neighborhood.rear_dv,1,0.),get(neighborhood.rear_dist,1,1000.))/dt
-	a_follower_right_ = get_idm_dv(neighborhood.rear_idm[-1],dt,v,get(neighborhood.rear_dv,-1,0.),get(neighborhood.rear_dist,-1,1000.))/dt
+	if get(neighborhood.rear_idm,1,0.) == 0.
+		a_follower_left = 0.
+		a_follower_left_ = 0.
+	else
+		a_follower_left = get_idm_dv(neighborhood.rear_idm[1],dt,v,get(neighborhood.rear_dv,1,0.)+get(neighborhood.ahead_dv,1,0.),get(neighborhood.rear_dist,1,1000.)+get(neighborhood.ahead_dist,1,1000.)+l_car)/dt	
+		a_follower_left_ = get_idm_dv(neighborhood.rear_idm[1],dt,v,get(neighborhood.rear_dv,1,0.),get(neighborhood.rear_dist,1,1000.))/dt
+	end
 	
+	if get(neighborhood.rear_idm,-1,0.) == 0.
+		a_follower_right = 0.
+		a_follower_right_ = 0.
+	else
+		a_follower_right = get_idm_dv(neighborhood.rear_idm[-1],dt,v,get(neighborhood.rear_dv,-1,0.)+get(neighborhood.ahead_dv,-1,0.),get(neighborhood.rear_dist,-1,1000.)+get(neighborhood.ahead_dist,-1,1000.)+l_car)/dt
+		a_follower_right_ = get_idm_dv(neighborhood.rear_idm[-1],dt,v,get(neighborhood.rear_dv,-1,0.),get(neighborhood.rear_dist,-1,1000.))/dt
+	end
+
 	#calculate incentives
 	left_crit = a_self_left-a_self+p_mobil.p*(a_follower_left_-a_follower_left+a_follower_-a_follower)
 	right_crit = a_self_right-a_self+p_mobil.p*(a_follower_right_-a_follower_right+a_follower_-a_follower)
