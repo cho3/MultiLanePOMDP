@@ -54,8 +54,11 @@ type PhysicalParam
 		self.NB_DIR = NB_DIR
 		self.NB_POS = convert(Int,round((lane_length/x_interval)*((w_lane/y_interval)*nb_lanes-1))) #2*nb_lane-1 ostensibly
 		self.VELOCITIES = collect(linspace(v_slow,v_fast,nb_vel_bins))
-		self.POSITIONS = collect(linspace(-lane_length/2,lane_length/2,convert(Int,round(lane_length/x_interval))))
-		
+		####NOTE: THIS IS GETTING CHANGED tO THE NEXT LINE I PRAY TO GOD IT DOESN'T EXPLODE
+		#self.POSITIONS = collect(linspace(-lane_length/2,lane_length/2,convert(Int,round(lane_length/x_interval))))
+		self.POSITIONS = collect(linspace(0.,lane_length,convert(Int,round(lane_length/x_interval))))
+
+
 		return self
 		end
 end
