@@ -162,7 +162,7 @@ end
 function test_car_neighborhood_creation()
 	println("\t\tTesting Car Neighborhood Creation")
 	p1 = CarNeighborhood()
-	
+
 end
 
 function test_car_neighborhood_equality()
@@ -183,23 +183,63 @@ function test_get_adj_cars()
 	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
 	#CASE: just agent car
 	cs = CarState[CarState((24,3,),3,0,bs[1])]
+	dp1 = pp.POSITIONS[48]-pp.POSITIONS[24]-pp.l_car
+	dp2 = pp.POSITIONS[24]-pp.POSITIONS[1]-pp.l_car
 	#just make sure it doesn't explode--this should be handled by get_mobil_lane_change
-	get_adj_cars(pp,cs,1)
+	nbhd = get_adj_cars(pp,cs,1)
+	assert(get(nbhd.ahead_dist,0,-1)==100000.)
+	assert(get(nbhd.ahead_dist,1,-1)==100000.)
+	assert(get(nbhd.ahead_dist,-1,-1)==100000.)
+	assert(get(nbhd.behind_dist,0,-1)==100000.)
+	assert(get(nbhd.behind_dist,1,-1)==100000.)
+	assert(get(nbhd.behind_dist,-1,-1)==100000.)
 	#CASE: nobody to the left
 	cs = CarState[CarState((48,3,),3,0,bs[1]),CarState((24,3,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((48,1,),3,0,bs[1]),CarState((1,1,),3,0,bs[1])]
-	get_adj_cars(pp,cs,2)
+	nbhd = get_adj_cars(pp,cs,2)
+	assert(get(nbhd.ahead_dist,0,-1),dp1)
+	assert(get(nbhd.ahead_dist,1,-1),100000.)
+	assert(get(nbhd.ahead_dist,-1,-1),dp1)
+	assert(get(nbhd.behind_dist,0,-1),dp2)
+	assert(get(nbhd.behind_dist,1,-1),100000.)
+	assert(get(nbhd.behind_dist,-1,-1),dp2)
 	#CASE: nobody to the right
 	cs = CarState[CarState((48,3,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((24,3,),3,0,bs[1]),CarState((48,5,),3,0,bs[1]),CarState((1,5,),3,0,bs[1])]
-	get_adj_cars(pp,cs,3)
+	nbhd = get_adj_cars(pp,cs,3)
+	assert(get(nbhd.ahead_dist,0,-1),dp1)
+	assert(get(nbhd.ahead_dist,1,-1),dp1)
+	assert(get(nbhd.ahead_dist,-1,-1),100000.)
+	assert(get(nbhd.behind_dist,0,-1),dp2)
+	assert(get(nbhd.behind_dist,1,-1),dp2)
+	assert(get(nbhd.behind_dist,-1,-1),100000.)
 	#CASE: no one ahead
-	cs = CarState[CarState((1,5,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((1,5,),3,0,bs[1]),CarState((24,3,),3,0,bs[1])]
-	get_adj_cars(pp,cs,4)
+	cs = CarState[CarState((1,5,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((1,1,),3,0,bs[1]),CarState((24,3,),3,0,bs[1])]
+	nbhd = get_adj_cars(pp,cs,4)
+	assert(get(nbhd.ahead_dist,0,-1),100000.)
+	assert(get(nbhd.ahead_dist,1,-1),100000.)
+	assert(get(nbhd.ahead_dist,-1,-1),100000.)
+	assert(get(nbhd.behind_dist,0,-1),dp2)
+	assert(get(nbhd.behind_dist,1,-1),dp2)
+	assert(get(nbhd.behind_dist,-1,-1),dp2)
 	#CASE: no one behind
-	CarState[CarState((48,5,),3,0,bs[1]),CarState((48,3,),3,0,bs[1]),CarState((48,5,),3,0,bs[1]),CarState((24,3,),3,0,bs[1])]
-	get_adj_cars(pp,cs,4)
+	cs = CarState[CarState((48,5,),3,0,bs[1]),CarState((48,3,),3,0,bs[1]),CarState((48,1,),3,0,bs[1]),CarState((24,3,),3,0,bs[1])]
+	nbhd = get_adj_cars(pp,cs,4)
+	assert(get(nbhd.ahead_dist,0,-1),dp1)
+	assert(get(nbhd.ahead_dist,1,-1),dp1)
+	assert(get(nbhd.ahead_dist,-1,-1),dp1)
+	assert(get(nbhd.behind_dist,0,-1),100000.)
+	assert(get(nbhd.behind_dist,1,-1),100000.)
+	assert(get(nbhd.behind_dist,-1,-1),100000.)
 	#CASE: full house
-	cs = CarState[CarState((48,3,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((48,1,),3,0,bs[1]),CarState((1,1,),3,0,bs[1]),CarState((48,1,),5,0,bs[1]),CarState((1,1,),5,0,bs[1]),CarState((24,3,),3,0,bs[1])]
-	get_adj_cars(pp,cs,7)
+	cs = CarState[CarState((48,3,),3,0,bs[1]),CarState((1,3,),3,0,bs[1]),CarState((48,1,),3,0,bs[1]),CarState((1,1,),3,0,bs[1]),CarState((48,5,),5,0,bs[1]),CarState((1,5,),5,0,bs[1]),CarState((24,3,),3,0,bs[1])]
+	nbhd = get_adj_cars(pp,cs,7)
+	assert(get(nbhd.ahead_dist,0,-1),dp1)
+	assert(get(nbhd.ahead_dist,1,-1),dp1)
+	assert(get(nbhd.ahead_dist,-1,-1),dp1)
+	assert(get(nbhd.behind_dist,0,-1),dp2)
+	assert(get(nbhd.behind_dist,1,-1),dp2)
+	assert(get(nbhd.behind_dist,-1,-1),dp2)
+
+	##TODO, someday: test cases for slightly off line cars, cars that are far away
 end
 
 function test_get_mobil_lane_change()
@@ -287,9 +327,9 @@ function test_carstate_equality()
 	push!(ps,CarState((1,1),3,1,bs[1]))
 	push!(ps,CarState((1,2),3,0,bs[1]))
 	push!(ps,CarState((2,1),3,0,bs[1]))
-	
+
 	test_equality("CarState",ps)
-	
+
 end
 
 function test_carstate_hashing()
@@ -302,7 +342,7 @@ function test_carstate_hashing()
 	push!(ps,CarState((1,1),3,1,bs[1]))
 	push!(ps,CarState((1,2),3,0,bs[1]))
 	push!(ps,CarState((2,1),3,0,bs[1]))
-	
+
 	test_hashing("CarState",ps)
 end
 function test_carstateobs_creation()
@@ -318,9 +358,9 @@ function test_carstateobs_equality()
 	push!(ps,CarStateObs((1,1),3,1))
 	push!(ps,CarStateObs((1,2),3,0))
 	push!(ps,CarStateObs((2,1),3,0))
-	
+
 	test_equality("CarState",ps)
-	
+
 end
 
 function test_carstateobs_hashing()
@@ -331,7 +371,7 @@ function test_carstateobs_hashing()
 	push!(ps,CarStateObs((1,1),3,1))
 	push!(ps,CarStateObs((1,2),3,0))
 	push!(ps,CarStateObs((2,1),3,0))
-	
+
 	test_hashing("CarStateObs",ps)
 end
 
@@ -350,13 +390,13 @@ function test_MLState_equality()
 	push!(cs,CarState((1,1),3,1,bs[1]))
 	push!(cs,CarState((1,2),3,0,bs[1]))
 	push!(cs,CarState((2,1),3,0,bs[1]))
-	
+
 	ps = MLState[]
 	push!(ps,MLState(2,5,cs[1:1]))
 	push!(ps,MLState(3,5,cs[1:1]))
 	push!(ps,MLState(2,4,cs[1:1]))
 	push!(ps,MLState(2,5,cs[1:2]))
-	
+
 	test_equality("MLState",ps)
 end
 
@@ -370,13 +410,13 @@ function test_MLState_hashing()
 	push!(cs,CarState((1,1),3,1,bs[1]))
 	push!(cs,CarState((1,2),3,0,bs[1]))
 	push!(cs,CarState((2,1),3,0,bs[1]))
-	
+
 	ps = MLState[]
 	push!(ps,MLState(2,5,cs[1:1]))
 	push!(ps,MLState(3,5,cs[1:1]))
 	push!(ps,MLState(2,4,cs[1:1]))
 	push!(ps,MLState(2,5,cs[1:2]))
-	
+
 	test_hashing("MLState",ps)
 end
 
@@ -409,13 +449,13 @@ function test_MLObs_equality()
 	push!(cs,CarStateObs((1,1),3,1))
 	push!(cs,CarStateObs((1,2),3,0))
 	push!(cs,CarStateObs((2,1),3,0))
-	
+
 	ps = MLObs[]
 	push!(ps,MLObs(2,5,cs[1:1]))
 	push!(ps,MLObs(3,5,cs[1:1]))
 	push!(ps,MLObs(2,4,cs[1:1]))
 	push!(ps,MLObs(2,5,cs[1:2]))
-	
+
 	test_equality("MLObs",ps)
 end
 
@@ -427,13 +467,13 @@ function test_MLObs_hashing()
 	push!(cs,CarStateObs((1,1),3,1))
 	push!(cs,CarStateObs((1,2),3,0))
 	push!(cs,CarStateObs((2,1),3,0))
-	
+
 	ps = MLObs[]
 	push!(ps,MLObs(2,5,cs[1:1]))
 	push!(ps,MLObs(3,5,cs[1:1]))
 	push!(ps,MLObs(2,4,cs[1:1]))
 	push!(ps,MLObs(2,5,cs[1:2]))
-	
+
 	test_hashing("MLObs",ps)
 end
 
@@ -492,7 +532,7 @@ include(joinpath("..","src","ML_model.jl"))
 function test_observations()
 	##Currently generating 3672 vs 3456 calculated
 	println("\t\tTesting Observation Space Creation")
-	nb_lanes = 2 
+	nb_lanes = 2
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=2.) #2.=>col_length=8
 	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
 	O = observations(p)
@@ -515,12 +555,12 @@ end
 
 function test_reward()
 	println("\t\tTesting Reward Model")
-	nb_lanes = 2 
+	nb_lanes = 2
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=12.) #2.=>col_length=8
 	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
-	
+
 	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
-	
+
 	#Env Car out of bounds
 	cs_oob = CarState((0,1),1,0,bs[1])
 	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
@@ -535,7 +575,7 @@ function test_reward()
 	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
 	cs_mchill = CarState((24,1),2,2,BehaviorModel("normal",31.,4.))
 	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
-	
+
 	#CASE: do nothing = no costs
 	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,0)) == 0.)
 	#CASE: moving = cost
@@ -547,7 +587,7 @@ function test_reward()
 	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(1,-1)) == p.accel_cost + p.lanechange_cost)
 	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,-1)) == p.decel_cost + p.lanechange_cost)
 	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,-1)) == p.lanechange_cost)
-	
+
 	#Case: cars occupy same space
 	assert(reward(p,MLState(1,2,CarState[cs_rchill]),MLAction(0,0)) == p.r_crash)
 	assert(reward(p,MLState(1,2,CarState[cs_mchill]),MLAction(0,0)) == p.r_crash)
@@ -654,12 +694,12 @@ end
 
 function test_is_crash()
 	println("\t\tTesting is_crash")
-	nb_lanes = 2 
+	nb_lanes = 2
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=12.) #2.=>col_length=8
 	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
-	
+
 	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
-	
+
 	#Env Car out of bounds
 	cs_oob = CarState((0,1),1,0,bs[1])
 	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
@@ -674,7 +714,7 @@ function test_is_crash()
 	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
 	cs_mchill = CarState((24,1),2,2,BehaviorModel("normal",31.,4.))
 	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
-	
+
 	##TODO: change these tests borrowed from test_reward to something more meaningful
 	#CASE: do nothing = no costs
 	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(0,0)))
@@ -687,7 +727,7 @@ function test_is_crash()
 	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(1,-1)))
 	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,-1)))
 	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(0,-1)))
-	
+
 	#Case: cars occupy same space
 	assert(is_crash(p,MLState(1,2,CarState[cs_rchill]),MLAction(0,0)))
 	assert(is_crash(p,MLState(1,2,CarState[cs_mchill]),MLAction(0,0)))
@@ -722,7 +762,3 @@ test_units()
 ######################
 ##FUNCTIONAL TESTING##
 ######################
-
-
-
-
