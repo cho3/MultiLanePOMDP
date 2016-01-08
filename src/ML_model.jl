@@ -2,25 +2,32 @@
 #a separate file for hte ML pomdp formulation
 ##TODO: fix long dictionary comprehension on lines 224, 257 and 316
 function observations(pomdp::MLPOMDP)
-	
+
 	#generate all partial states for a single environment car
 	env_car_states = CarStateObs[]
-	
+
 	for x in 0:length(pomdp.phys_param.POSITIONS)
 		for y in 1:pomdp.nb_col
 			for v in 1:length(pomdp.phys_param.VELOCITIES)
 				for lane_change in [-1; 0; 1]
 					#collapse not in the environment into a single state
-					if (x == 0) && (y != 1) && (v != 1) && (lane_change != 0) 
+					if x != 0
+						push!(env_car_states,CarStateObs((x,y,),v,lane_change))
+					elseif (x == 0) && (y == 1) && (v == 1) && (lane_change == 0)
+						push!(env_car_states,CarStateObs((x,y,),v,lane_change))
+					end
+					"""
+					if (x == 0) && (y != 1) && (v != 1) && (lane_change != 0)
 						break
 					end
 					push!(env_car_states,CarStateObs((x,y,),v,lane_change))
+					"""
 				end
 			end
 		end
 	end
 	car_states = product([env_car_states for i = 1:pomdp.nb_cars]...)
-	
+
 	###WARNING!!!! THIS IS SUPER FRAGILE ^^^VVV
 	O = MLObs[]
 	#include iterators.product
@@ -38,7 +45,7 @@ function observations(pomdp::MLPOMDP)
 		println("Calculated observation space size: $(n_observations(pomdp))")
 		error("Error: analytical number of states does not agree with generated number of observations")
 	end
-	
+
 	return O
 end
 
@@ -46,24 +53,31 @@ function states(pomdp::POMDP)
 #generate all partial states for a single environment car
 	env_car_states = CarState[]
 	#behaviors = BehaviorModel[BehaviorModel(x[1],x[2]) for x in product(["cautious","normal","aggressive"],[v_slow;v_med;v_fast])]
-	
+
 	for x in 0:length(pomdp.phys_param.POSITIONS)
 		for y in 1:pomdp.nb_col
 			for v in 1:length(pomdp.phys_param.VELOCITIES)
 				for lane_change in [-1; 0; 1]
 					for behavior in pomdp.BEHAVIORS
 						#collapse not in the environment into a single state
+						if x != 0
+							push!(env_car_states,CarState((x,y,),v,lane_change,behavior))
+						elseif (x== 0) && (y == 1) && (v == 1) && (lane_change == 0) && (behavior == pomdp.BEHAVIORS[1])
+							push!(env_car_states,CarState((x,y,),v,lane_change,behavior))
+						end
+						"""
 						if (x == 0) && (y != 1) && (v != 1) && (lane_change != 0) && (behavior != pomdp.BEHAVIORS[1])
 							continue
 						end
 						push!(env_car_states,CarState((x,y,),v,lane_change,behavior))
+						"""
 					end
 				end
 			end
 		end
 	end
 	car_states = product([env_car_states for i = 1:pomdp.nb_cars]...)
-	
+
 	###WARNING!!!! THIS IS SUPER FRAGILE ^^^VVV
 	S = MLState[]
 	#include iterators.product
@@ -81,8 +95,8 @@ function states(pomdp::POMDP)
 		println("Calculated state space size: $(n_states(pomdp))")
 		error("Error: analytical number of states does not agree with generated number of states")
 	end
-	
-	return S	
+
+	return S
 end
 
 actions(pomdp::MLPOMDP) = ActionSpace([MLAction(x[1],x[2]) for x in product([-1,0,1],[-1,0,1])])
@@ -103,7 +117,7 @@ function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	else
 		agent_pos = POSITIONS[convert(Int,round(agent_pos_ind))]
 	end
-		
+
 	for env_car in s.env_cars
 		p = env_car.pos
 		v = env_car.vel
@@ -131,11 +145,11 @@ function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	if abs(a.lane_change) != 0
 		cost += pomdp.lanechange_cost
 	end
-	
-	
+
+
 	return cost #
 end
-reward(pomdp::MLPOMDP,s::MLState,a::MLAction,sp::MLState) = reward(pomdp,sp,a) 
+reward(pomdp::MLPOMDP,s::MLState,a::MLAction,sp::MLState) = reward(pomdp,sp,a)
 
 type MLStateDistr <: AbstractDistribution
 	d::Dict{MLState,Float64} #e.g. sparse vector
@@ -151,7 +165,7 @@ function rev_1d_interp(arr::Array{Float64,1},x::Float64,fx::Float64)
 		return Dict{Int,Float64}(rng.start=>1.) #0.4 syntax
 	end
 	#stop is the smaller bin, start is hte larger bin
-	return Dict{Int,Float64}(rng.stop=> fx*(arr[rng.start]-fx)/(arr[rng.start]-arr[rng.stop]), 
+	return Dict{Int,Float64}(rng.stop=> fx*(arr[rng.start]-fx)/(arr[rng.start]-arr[rng.stop]),
 								rng.start=>fx*(fx-arr[rng.stop])/(arr[rng.start]-arr[rng.stop]))
 end
 
@@ -160,20 +174,20 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 	##agent position always updates deterministically
 	agent_lane_ = s.agent_lane + a.lane_change
 	agent_lane_ = max(1,min(agent_lane_,pomdp.nb_col)) #can't leave the grid
-	
+
 	v_interval = (v_fast-v_slow)/(nb_vel_bins-1)
 	agent_vel_ = s.agent_vel + a.vel*convert(Int,ceil(1.*dt/(v_interval)))
 	agent_vel_ = max(1,min(agent_vel_,nb_vel_bins))
 	##check if an encounter is happening/cant happen
 	#if no environment cars are around, an encounter will always happen?
 	##encounter depends on configuration of environment? so nest the above into the dynamic update loop
-	#add 
-	
+	#add
+
 	##TODO: check each car's location to update
 	##		need to estimate next position for each car first, and then check
 	valid_col_top = Int[1:pomdp.nb_col]
 	valid_col_bot = Int[1:pomdp.nb_col]
-	
+
 	env_car_next_states = Array{Dict{CarState,Float64},1}[]
 	for (i,env_car) in enumerate(s.env_cars)
 		pos = env_car.pos
@@ -181,24 +195,24 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 		lane_change = env_car.lane_change
 		behavior = env_car.behavior
 		lane_ = max(1,min(pos[2]+lane_change,pomdp.nb_col))
-		
+
 		#get the leaders and followers for itself and all adjacent lanes somehow
 		if pos[1] > 0
-		
+
 			neighborhood = get_adj_cars(pomdp,s.env_cars,i)
-		
+
 			dvel_ms = get_idm_dv(behavior.p_idm,VELOCITIES[vel],neighborhood.ahead_dv[0],neighborhood.ahead_dist[0]) #call idm model
 			vel_inds = rev_1d_interp(VELOCITIES,vel+dvel_ms,behavior.rationality)
 			pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[a.vel])+0.5*dt*dvel_ms #x+vt+1/2at2
 			if pos_m > POSITIONS[end]
 				#if out of scene, move to out of scene state
-				next_state_probs = Dict{CarState,Float64}(CarState((0,1),1,0,behavior)=>1.0) 
+				next_state_probs = Dict{CarState,Float64}(CarState((0,1),1,0,behavior)=>1.0)
 				break
 			end
 			pos_inds = rev_1d_interp(POSITIONS,pos_m,behavior.rationality) #1.0 corresponds to total probability of 1.
 			#TODO: LANE CHANGE STUFF
 			#TODO: add probability of doing something else--e.g. lane change, speeding up more than expected or braking
-		
+
 			pos_probs = pos_inds#Dict{Int,Float64}() #placeholder, built off pos_inds
 			lane_probs = Dict{Int,Float64}(lane_=>1.)
 			vel_probs = vel_inds
@@ -210,14 +224,14 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 				#the something, but with full irrationality probability
 			end
 			#placeholder
-		
+
 			lanechange = get_mobil_lane_change(pomdp.phys_param,env_car,neighborhood)
 			lane_change_other = setdiff([-1;0;1],[lane_change])
 			lane_change_probs[lane_change] = behavior.rationality
 			for lanechange in lane_change_other
 				lanechange_probs[lanechange] = (1.-behavior.rationality)/(length(lane_change_other))
 			end
-		
+
 			comp_probs = product(pos_probs,lane_probs,vel_probs,lanechange_probs)
 			#position, velocity, and lane changing are uncoupled
 			next_state_probs = Dict{CarState,Float64}()
@@ -231,7 +245,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			pos_inds2 = [(x[1],x[2],) for x in product([1],valid_col_bot)] #FAST CARS
 			pos_vel2 = [(x[1],x[2],x[3],x[4]) for x in product(pos_inds2,collect(1:agent_vel_),[-1;0;1],BEHAVIORS)]
 			#TODO: prune pos_inds based on location of other cars
-			
+
 			next_state_probs = Dict{CarState,Float64}()
 			for x in pos_vel1
 				next_state_probs[CarState(x[1],x[2],x[3],x[4])] = (1.)/(length(pos_vel1)+length(pos_vel2))
@@ -239,29 +253,29 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			for x in pos_vel2
 				next_state_probs[CarState(x[1],x[2],x[3],x[4])] = (1.)/(length(pos_vel1)+length(pos_vel2))
 			end
-			
+
 			#for now, assume no one is changing lanes while they come into your horizon
 			#lane_change_probs = Dict{Int,Float64}(0=>1.)
 			#lane_change_probs = Dict{Int,Float64}(x=>(1/3.) for x in [-1;0;1])
 			next_state_probs[CarState((0,1),1,0,behavior)] = 1-pomdp.encounter_prob
 		end
-		
-		
+
+
 		push!(env_car_next_states,next_state_probs)
 		#create dictionary of all these composite probabilities
 	end
-	
+
 	##TODO: enumerate over agent car stuff
 	#there is either one or two possible next agent velocities if we allow the agent car to follow IDM--the other option is to just have it increment its velocity in reasonable, deterministic increments
 	d = Dict{MLState,Float64}()
 	#d = Dict{MLState,Float64}(MLState(agent_lane_,agent_vel_,CarState[y[1] for y in env])=>prod([x[2] for x in env]) for env in env_car_next_states)
-	
+
 	#for each dictionary, calculate composite probability, and then iterate over all possibilities, and calculate the product of probabilities and add to dictionary
-	
+
 	##for each environment car: calculate position update according to true velocity
 	##							calculate possible next possible velocities; assign probabilities (including irrationalities and 'fuzz')
 	##							behavior model persists
-	
+
 	if abs(sum(values(d.d))-1.) > 0.00001
 		println(d.d)
 		println(sum(values(d.d)))
@@ -292,7 +306,7 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 			"""
 			NOTE!!! You can probably add sensor failure here VVV
 			"""
-			#a car is observed to not be in the scene with probability 1. 
+			#a car is observed to not be in the scene with probability 1.
 			if env_pos[i] == 0
 				continue
 			end
@@ -307,13 +321,13 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 			#if below threshold: break
 			#multiply prob by relevant probability
 		end
-		
+
 	end
 	##behavior model unobserved
 
 	distr = Dict{MLObs,Float64}()
 	#distr = Dict{MLObs,Float64}(MLState(agent_lane_,agent_vel_,CarStateObs[y[1] for y in env])=>prod([x[2] for x in env]) for env in carstate_probs)
-	
+
 	if abs(sum(values(distr))-1.) > 0.0001
 		println(d.d)
 		println(sum(values(d.d)))
@@ -321,7 +335,7 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 	end
 	d.d = distr
 	return d
-	
+
 end
 
 function pdf(vel_ind::Int,vel_true::Int,sig::Float64=2)
