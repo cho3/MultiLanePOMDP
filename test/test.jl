@@ -574,7 +574,7 @@ function test_reward()
 	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
 	#env car is just chilling in the right/btwn/lhigh lane
 	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
-	cs_mchill = CarState((24,1),2,2,BehaviorModel("normal",31.,4.))
+	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.))
 	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
 
 	#CASE: do nothing = no costs
@@ -713,7 +713,7 @@ function test_is_crash()
 	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
 	#env car is just chilling in the right/btwn/lhigh lane
 	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
-	cs_mchill = CarState((24,1),2,2,BehaviorModel("normal",31.,4.))
+	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.))
 	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
 
 	##TODO: change these tests borrowed from test_reward to something more meaningful
@@ -732,7 +732,7 @@ function test_is_crash()
 	#Case: cars occupy same space
 	assert(is_crash(p,MLState(1,2,CarState[cs_rchill]),MLAction(0,0)))
 	assert(is_crash(p,MLState(1,2,CarState[cs_mchill]),MLAction(0,0)))
-	assert(is_crash(p,MLState(1,2,CarState[cs_hrchill]),MLAction(0,0)))
+	assert(is_crash(p,MLState(1,2,CarState[cs_hchill]),MLAction(0,0)))
 	#CASE: cars intersect; vertically (gets railroaded from behind)
 	assert(is_crash(p,MLState(1,1,CarState[cs_r_fast]),MLAction(-1,0)))
 	assert(is_crash(p,MLState(1,4,CarState[cs_r_slow]),MLAction(1,0)))

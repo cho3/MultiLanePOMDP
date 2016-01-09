@@ -73,6 +73,29 @@ function poly_intersect(X::Array{Array{Float64,2},1},Y::Array{Array{Float64,2},1
 		end
 	end
 
+	#check if one is inside the other
+	max1 = max(X[1][:,1],X[1][:,2])
+	min1 = min(X[1][:,1],X[1][:,2])
+	max2 = max(Y[1][:,1],Y[1][:,2])
+	min2 = min(Y[1][:,1],Y[1][:,2])
+	for i = 2:length(X)
+		max1 = max(max1,max(X[i][:,1],X[i][:,2]))
+		min1 = min(min1,min(X[i][:,1],X[i][:,2]))
+	end
+	for i = 2:length(Y)
+		max2 = max(max2,max(Y[i][:,1],Y[i][:,2]))
+		min2 = min(min2,min(Y[i][:,1],Y[i][:,2]))
+	end
+
+	#Case: X is contained in Y
+	if !(false in (max1 .< max2)) && !(false in (min1 .> min2))
+		return true
+	end
+	#Case: Y is contained in X
+	if !(false in (max2 .< max1)) && !(false in (min2 .> min1))
+		return true
+	end
+
 	"""
 	for i in 1:(size(X)[2]-1)
 		for k in 1:(size(Y)[2]-1)
@@ -98,30 +121,46 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	else
 		agent_pos = pomdp.phys_param.POSITIONS[convert(Int,round(agent_pos_ind))]
 	end
-	agent_y = s.agent_lane*y_interval
+	agent_y = s.agent_pos*pomdp.phys_param.y_interval
 
 	#treat agent_pos, agent_y as (0,0)
+	w_car = pomdp.phys_param.w_car
+	l_car = pomdp.phys_param.l_car
+	#TODO: make it so that X takes in to account the fact that the agent car can change lanes
+	w_car_ = w_car
+	if a.lane_change < 0
+		agent_y -= pomdp.phys_param.y_interval
+		w_car_ += pomdp.phys_param.y_interval
+	elseif a.lane_change > 0
+		w_car_ += pomdp.phys_param.y_interval
+	end
 	#X = Array{Float64,2}[agent_pos agent_pos+l_car agent_pos+l_car agent_pos agent_pos; agent_y agent_y agent_y+w_car agent_y+w_car agent_y]
-	X = Array{Float64,2}[[agent_pos agent_pos; agent_y agent_y+w_car];[agent_pos+l_car agent_pos+l_car; agent_y agent_y+w_car];
-						[agent_pos agent_pos+l_car; agent_y agent_y];[agent_pos agent_pos+l_car; agent_y+w_car agent_y+w_car]]
+	X = Array{Float64,2}[[agent_pos agent_pos; agent_y agent_y+w_car_],[agent_pos+l_car agent_pos+l_car; agent_y agent_y+w_car_],
+						[agent_pos agent_pos+l_car; agent_y agent_y],[agent_pos agent_pos+l_car; agent_y+w_car_ agent_y+w_car_]]
 
-	for env_car in s.env_cars
+	dt = pomdp.phys_param.dt
+	for (i,env_car) in enumerate(s.env_cars)
 		pos = env_car.pos
+		if pos[1] == 0
+			continue
+		end
 		vel = env_car.vel
 		lane_change = env_car.lane_change
 		behavior = env_car.behavior
 		lane_ = max(1,min(pos[2]+lane_change,pomdp.nb_col))
-		neighborhood = get_adj_cars(pomdp,s.env_cars,env_car)
+		neighborhood = get_adj_cars(pomdp.phys_param,s.env_cars,i)
 
-		dvel_ms = get_idm_dv(behavior.p_idm,pomdp.phys_param.VELOCITIES[vel],neighborhood.ahead_dv[0],neighborhood.ahead_dist[0]) #call idm model
-		dp =  dt*(pomdp.phys_param.VELOCITIES[vel]-pomdp.phys_param.VELOCITIES[a.vel])+0.5*dt*dvel_ms #x+vt+1/2at2
-		dy = (lane_-pos[2])*y_interval
-		p = pomdp.phys_param.POSITIONS[pos]
-		y = pos[2]*y_interval
+		dv = get(neighborhood.ahead_dv,0,0.)
+		ds = get(neighborhood.ahead_dist,0,1000.)
+		dvel_ms = get_idm_dv(behavior.p_idm,dt,pomdp.phys_param.VELOCITIES[vel],dv,ds) #call idm model
+		dp =  dt*(pomdp.phys_param.VELOCITIES[vel]-pomdp.phys_param.VELOCITIES[s.agent_vel])+0.5*dt*dvel_ms #x+vt+1/2at2
+		dy = (lane_-pos[2])*pomdp.phys_param.y_interval
+		p = pomdp.phys_param.POSITIONS[pos[1]]
+		y = pos[2]*pomdp.phys_param.y_interval
 		##TODO: make consistent with new formulation
-		Y1 = Array{Float64,2}[[p p; y y+w_car];[p+l_car p+l_car; y y+w_car];[p p+l_car; y y];[p p+l_car; y+w_car y+w_car]]
+		Y1 = Array{Float64,2}[[p p; y y+w_car],[p+l_car p+l_car; y y+w_car],[p p+l_car; y y],[p p+l_car; y+w_car y+w_car]]
 		Y2 = Array{Float64,2}[xy + [dp dp; dy dy] for xy in Y1]
-		Y3 = Array{Float64,2}[[p p+dp; y y+dy];[p+l_car p+dp+l_car; y y+dy];[p p+dp; y+w_car y+dy+w_car];[p+l_car p+dp+l_car; y+w_car y+dy+w_car]]
+		Y3 = Array{Float64,2}[[p p+dp; y y+dy],[p+l_car p+dp+l_car; y y+dy],[p p+dp; y+w_car y+dy+w_car],[p+l_car p+dp+l_car; y+w_car y+dy+w_car]]
 
 		Y = Array{Float64,2}[Y1;Y2;Y3]
 		if poly_intersect(X,Y)

@@ -126,7 +126,7 @@ function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
 		crash_flag = false
 		if abs(p[1]-agent_pos) < l_car
 			crash_flag = true
-		elseif abs(pos-p[2])*y_interval < w_car
+		elseif abs(pos-p[2]) (times) y_interval < w_car
 			crash_flag = true
 		end
 		#check crash conditions
@@ -235,6 +235,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			comp_probs = product(pos_probs,lane_probs,vel_probs,lanechange_probs)
 			#position, velocity, and lane changing are uncoupled
 			next_state_probs = Dict{CarState,Float64}()
+			#TODO
 			#next_state_probs = Dict{CarState,Float64}[CarState((x[1][1],x[2][1],),x[3][1],x[4][1],behavior)=>x[1][2]*x[2][2]*x[3][2]*x[4][2] for x in comp_probs]
 		else #if pos[1] <= 0
 			###ENCOUNTER MODEL
