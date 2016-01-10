@@ -616,11 +616,127 @@ end
 function test_transition()
 	println("\t\tTesting Transition Model")
 
-	#CASE: test that env car goes out of bounds at top boundary
-	#CASE: test that env car goes out of bounds at bottom boundary
-	#CASE: test basic encounter model  for slow
-	#CASE: test basic encounter model for fast
+	nb_lanes = 2
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=12.) #2.=>col_length=8
+	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
 
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+
+	#Env Car out of bounds
+	cs_oob = CarState((0,1),1,0,bs[1])
+	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
+	cs_l_slow = CarState((3,1),1,0,BehaviorModel("aggressive",27.,4.))
+	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
+	cs_r_fast = CarState((48,1),5,0,BehaviorModel("aggressive",35.,4.))
+	#env car going at a medium speed in the right lane heading left
+	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	#env car going at a medium speed in the left lane heading right
+	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
+	#env car is just chilling in the right/btwn/lhigh lane
+	cs_rchill = CarState((24,1),3,1,BehaviorModel("normal",31.,4.))
+	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.))
+	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
+
+	#CASE: test that env car goes out of bounds at top boundary
+	s = MLState(3,1,CarState[cs_r_fast])
+	a = MLAction(0,-1)
+	d = transition(p,s,a)
+	assert(length(d.d),1)
+	s_ = collect(keys(d.d))[1]
+	assert(s_.agent_pos,2)
+	assert(s_.agent_vel,1)
+	assert(s_.env_cars[1].pos[1],0)
+	#CASE: test that env car goes out of bounds at bottom boundary
+	s = MLState(1,5,CarState[cs_l_slow])
+	a = MLAction(0,1)
+	d = transition(p,s,a)
+	assert(length(d.d),1)
+	s_ = collect(keys(d.d))[1]
+	assert(s_.agent_pos,2)
+	assert(s_.agent_vel,5)
+	assert(s_.env_cars[1].pos[1],0)
+	#More test cases to check that the actions do what they're supposed to do
+	#moving left when there's nothing
+	s = MLState(3,3,CarState[cs_l_slow])
+	a = MLAction(0,1)
+	d = transition(p,s,a)
+	s_ = collect(keys(d.d))[1]
+	assert(s_.agent_pos,3)
+	assert(s_.agent_vel,3)
+	#moving right when you're in the rightmost position
+	s = MLState(1,3,CarState[cs_l_slow])
+	a = MLAction(0,-1)
+	d = transition(p,s,a)
+	s_ = collect(keys(d.d))[1]
+	assert(s_.agent_pos,1)
+	assert(s_.agent_vel,3)
+	#speeding up
+	s = MLState(2,3,CarState[cs_l_slow])
+	a = MLAction(1,0)
+	d = transition(p,s,a)
+	s_ = collect(keys(d.d))[1]
+	assert(s_.agent_pos,2)
+	assert(s_.agent_vel,4)
+	#slowing down
+	s = MLState(2,3,CarState[cs_l_slow])
+	a = MLAction(-1,0)
+	d = transition(p,s,a)
+	s_ = collect(keys(d.d))[1]
+	assert(s_.agent_pos,2)
+	assert(s_.agent_vel,2)
+	#speeding up at fastest speed
+	s = MLState(2,5,CarState[cs_l_slow])
+	a = MLAction(1,0)
+	d = transition(p,s,a)
+	s_ = collect(keys(d.d))[1]
+	assert(s_.agent_pos,2)
+	assert(s_.agent_vel,5)
+	#slowing down at slowest speed
+	s = MLState(2,1,CarState[cs_l_slow])
+	a = MLAction(-1,0)
+	d = transition(p,s,a)
+	s_ = collect(keys(d.d))[1]
+	assert(s_.agent_pos,2)
+	assert(s_.agent_vel,1)
+	#CASE: test basic encounter model  for slow
+	s = MLState(2,1,CarState[cs_oob])
+	a = MLAction(0,0)
+	d = transition(p,s,a)
+	ss_ = collect(keys(d.d))
+	for s in ss_
+		car = s.env_cars[1]
+		if car.pos[1] == p.col_length
+			assert(car.vel <= s.agent_vel)
+		elseif car.pos[1] == 1
+			assert(car.vel >= s.agent_vel)
+		else
+			error("Transition failed: encounter model is summoning cars in the middle")
+		end
+	end
+	#CASE: test basic encounter model for fast
+	s = MLState(2,1,CarState[cs_oob])
+	a = MLAction(0,0)
+	d = transition(p,s,a)
+	ss_ = collect(keys(d.d))
+	s = MLState(2,1,CarState[cs_oob])
+	a = MLAction(0,0)
+	d = transition(p,s,a)
+	ss_ = collect(keys(d.d))
+	for s in ss_
+		car = s.env_cars[1]
+		if car.pos[1] == p.col_length
+			assert(car.vel <= s.agent_vel)
+		elseif car.pos[1] == 1
+			assert(car.vel >= s.agent_vel)
+		else
+			error("Transition failed: encounter model is summoning cars in the middle")
+		end
+	end
+	#CASE: normal evolution (call idm model)
+	s = MLState(2,1,CarState[cs_oob])
+	a = MLAction(0,0)
+	d = transition(p,s,a)
+	#something
 end
 
 import Distributions: Normal, cdf

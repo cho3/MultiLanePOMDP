@@ -92,7 +92,7 @@ type MLPOMDP <: POMDP
 		self.r_crash = r_crash
 		self.accel_cost = accel_cost
 		self.decel_cost = decel_cost
-		self. lanechange_cost = lanechange_cost
+		self.lanechange_cost = lanechange_cost
 		self.discount = discount
 		self.fuzz = fuzz
 		self.phys_param = phys_param

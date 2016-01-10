@@ -160,24 +160,29 @@ create_transition_distribution(::MLPOMDP) = MLStateDistr(Dict{MLState,Float64}()
 function rev_1d_interp(arr::Array{Float64,1},x::Float64,fx::Float64)
 	#NOTE! This is not actually how interpolation works
 	rng = searchsorted(arr,fx)
-	if rng.start <= rng.stop
+	start = min(rng.start,length(arr))
+	stop = max(rng.stop,1)
+	if start <= stop
 		#on the off chance it actually lands squarely on a division
-		return Dict{Int,Float64}(rng.start=>1.) #0.4 syntax
+		return Dict{Int,Float64}(start=>1.) #0.4 syntax
 	end
 	#stop is the smaller bin, start is hte larger bin
-	return Dict{Int,Float64}(rng.stop=> fx*(arr[rng.start]-fx)/(arr[rng.start]-arr[rng.stop]),
-								rng.start=>fx*(fx-arr[rng.stop])/(arr[rng.start]-arr[rng.stop]))
+	return Dict{Int,Float64}(stop=> fx*(arr[start]-fx)/(arr[start]-arr[stop]),
+								start=>fx*(fx-arr[stop])/(arr[start]-arr[stop]))
 end
 
 function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create_transition_distribution(pomdp))
 
+	dt = pomdp.phys_param.dt
+	POSITIONS = pomdp.phys_param.POSITIONS
+	VELOCITIES = pomdp.phys_param.VELOCITIES
 	##agent position always updates deterministically
-	agent_lane_ = s.agent_lane + a.lane_change
+	agent_lane_ = s.agent_pos + a.lane_change
 	agent_lane_ = max(1,min(agent_lane_,pomdp.nb_col)) #can't leave the grid
 
-	v_interval = (v_fast-v_slow)/(nb_vel_bins-1)
+	v_interval = (pomdp.phys_param.v_fast-pomdp.phys_param.v_slow)/(pomdp.phys_param.nb_vel_bins-1)
 	agent_vel_ = s.agent_vel + a.vel*convert(Int,ceil(1.*dt/(v_interval)))
-	agent_vel_ = max(1,min(agent_vel_,nb_vel_bins))
+	agent_vel_ = max(1,min(agent_vel_,pomdp.phys_param.nb_vel_bins))
 	##check if an encounter is happening/cant happen
 	#if no environment cars are around, an encounter will always happen?
 	##encounter depends on configuration of environment? so nest the above into the dynamic update loop
@@ -185,8 +190,8 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 
 	##TODO: check each car's location to update
 	##		need to estimate next position for each car first, and then check
-	valid_col_top = Int[1:pomdp.nb_col]
-	valid_col_bot = Int[1:pomdp.nb_col]
+	valid_col_top = Int[1;pomdp.nb_col]
+	valid_col_bot = Int[1;pomdp.nb_col]
 
 	env_car_next_states = Array{Dict{CarState,Float64},1}[]
 	for (i,env_car) in enumerate(s.env_cars)
@@ -199,15 +204,18 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 		#get the leaders and followers for itself and all adjacent lanes somehow
 		if pos[1] > 0
 
-			neighborhood = get_adj_cars(pomdp,s.env_cars,i)
+			neighborhood = get_adj_cars(pomdp.phys_param,s.env_cars,i)
 
-			dvel_ms = get_idm_dv(behavior.p_idm,VELOCITIES[vel],neighborhood.ahead_dv[0],neighborhood.ahead_dist[0]) #call idm model
+			dvel_ms = get_idm_dv(behavior.p_idm,dt,VELOCITIES[vel],get(neighborhood.ahead_dv,0,0.),get(neighborhood.ahead_dist,0,1000.)) #call idm model
 			vel_inds = rev_1d_interp(VELOCITIES,vel+dvel_ms,behavior.rationality)
-			pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[a.vel])+0.5*dt*dvel_ms #x+vt+1/2at2
-			if pos_m > POSITIONS[end]
+			pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[s.agent_vel])+0.5*dt*dvel_ms #x+vt+1/2at2
+			if (pos_m > POSITIONS[end]) || (pos_m < POSITIONS[1])
 				#if out of scene, move to out of scene state
-				next_state_probs = Dict{CarState,Float64}(CarState((0,1),1,0,behavior)=>1.0)
-				break
+				next_state_probs = Dict{CarState,Float64}(CarState((0,1),1,0,behavior) => 1.0)
+				env_car_next_states = [env_car_next_states;next_state_probs]
+				#append!(env_car_next_states,[next_state_probs])
+				#push!(env_car_next_states,next_state_probs)
+				continue
 			end
 			pos_inds = rev_1d_interp(POSITIONS,pos_m,behavior.rationality) #1.0 corresponds to total probability of 1.
 			#TODO: LANE CHANGE STUFF
@@ -219,15 +227,16 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			#equal probability of doing nothing or the opposite
 			if !(vel in keys(vel_probs))
 				vel_probs[vel] = (1-behavior.rationality)/2.
-				#something
+				#TODO:something
 			else
-				#the something, but with full irrationality probability
+				#TODO:the something, but with full irrationality probability
 			end
 			#placeholder
 
 			lanechange = get_mobil_lane_change(pomdp.phys_param,env_car,neighborhood)
 			lane_change_other = setdiff([-1;0;1],[lane_change])
-			lane_change_probs[lane_change] = behavior.rationality
+			lanechange_probs = Dict{Int,Float64}()
+			lanechange_probs[lanechange] = behavior.rationality
 			for lanechange in lane_change_other
 				lanechange_probs[lanechange] = (1.-behavior.rationality)/(length(lane_change_other))
 			end
@@ -238,7 +247,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			#TODO
 			next_state_probs = Dict{CarState,Float64}([CarState((x[1][1],x[2][1],),x[3][1],x[4][1],behavior) => x[1][2]*x[2][2]*x[3][2]*x[4][2] for x in comp_probs])
 		else #if pos[1] <= 0
-			###ENCOUNTER MODEL
+			###NOTE:ENCOUNTER MODEL
 			##position and velocities are coupled
 			#TODO: check if this is even consistent
 			pos_inds1 = [(x[1],x[2],) for x in product([pomdp.col_length],valid_col_top)] #SLOW CARS
@@ -261,8 +270,8 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			next_state_probs[CarState((0,1),1,0,behavior)] = 1-pomdp.encounter_prob
 		end
 
-
-		push!(env_car_next_states,next_state_probs)
+		env_car_next_states = [env_car_next_states;next_state_probs]
+		#push!(env_car_next_states,next_state_probs)
 		#create dictionary of all these composite probabilities
 	end
 
@@ -270,7 +279,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 	#there is either one or two possible next agent velocities if we allow the agent car to follow IDM--the other option is to just have it increment its velocity in reasonable, deterministic increments
 	#d = Dict{MLState,Float64}()
 	env_car_next_states_ = product(env_car_next_states...)
-	d = Dict{MLState,Float64}([MLState(agent_lane_,agent_vel_,CarState[y[1] for y in env]) => prod([x[2] for x in env]) for env in env_car_next_states_])
+	d.d = Dict{MLState,Float64}([MLState(agent_lane_,agent_vel_,CarState[y[1] for y in env]) => prod([x[2] for x in env]) for env in env_car_next_states_])
 
 	#for each dictionary, calculate composite probability, and then iterate over all possibilities, and calculate the product of probabilities and add to dictionary
 
