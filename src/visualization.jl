@@ -167,10 +167,8 @@ function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	end
 
 	#if is_crash, add crash graphic
-	"""
 	if is_crash(pomdp,s,a)
 		draw_bang(x_ctr,y_ctr)
 	end
-	"""
 	axis("equal")
 end

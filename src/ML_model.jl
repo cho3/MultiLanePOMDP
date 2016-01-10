@@ -234,9 +234,9 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 
 			comp_probs = product(pos_probs,lane_probs,vel_probs,lanechange_probs)
 			#position, velocity, and lane changing are uncoupled
-			next_state_probs = Dict{CarState,Float64}()
+			#next_state_probs = Dict{CarState,Float64}()
 			#TODO
-			#next_state_probs = Dict{CarState,Float64}[CarState((x[1][1],x[2][1],),x[3][1],x[4][1],behavior)=>x[1][2]*x[2][2]*x[3][2]*x[4][2] for x in comp_probs]
+			next_state_probs = Dict{CarState,Float64}([CarState((x[1][1],x[2][1],),x[3][1],x[4][1],behavior) => x[1][2]*x[2][2]*x[3][2]*x[4][2] for x in comp_probs])
 		else #if pos[1] <= 0
 			###ENCOUNTER MODEL
 			##position and velocities are coupled
@@ -268,8 +268,9 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 
 	##TODO: enumerate over agent car stuff
 	#there is either one or two possible next agent velocities if we allow the agent car to follow IDM--the other option is to just have it increment its velocity in reasonable, deterministic increments
-	d = Dict{MLState,Float64}()
-	#d = Dict{MLState,Float64}(MLState(agent_lane_,agent_vel_,CarState[y[1] for y in env])=>prod([x[2] for x in env]) for env in env_car_next_states)
+	#d = Dict{MLState,Float64}()
+	env_car_next_states_ = product(env_car_next_states...)
+	d = Dict{MLState,Float64}([MLState(agent_lane_,agent_vel_,CarState[y[1] for y in env]) => prod([x[2] for x in env]) for env in env_car_next_states_])
 
 	#for each dictionary, calculate composite probability, and then iterate over all possibilities, and calculate the product of probabilities and add to dictionary
 
@@ -291,6 +292,15 @@ end
 pdf(d::MLObsDistr,o::MLObs) = get(d.d,o,0.)
 create_observation_distribution(::MLPOMDP) = MLObsDistr(Dict{MLObs,Float64}())
 
+
+function pdf(VELOCITIES::Array{Float64,1},vel_ind::Int,vel_true::Int,sig::Float64=2.)
+	vu = vel_ind < length(VELOCITIES)? (VELOCITIES[vel_ind+1]+VELOCITIES[vel_ind])/2. : Inf
+	vl = vel_ind > 1? (VELOCITIES[vel_ind-1]+VELOCITIES[vel_ind])/2. : -Inf
+	zu = (vu-VELOCITIES[vel_true])/sig
+	zl = (vl-VELOCITIES[vel_true])/sig
+	return cdf(Normal(),zu)-cdf(Normal(),zl)
+end
+
 observation(p::MLPOMDP,s::MLState,a::MLAction,sp::MLState,d::MLObsDistr=create_observation_distribution(p)) = observation(p,s,a,d)
 function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_observation_distribution(pomdp))
 	#or should i be operating on sp?
@@ -299,25 +309,27 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 	agent_pos = s.agent_pos
 	agent_vel = s.agent_vel
 	##environment positions fully observed
-	env_pos = Int[car.pos for car in s.env_cars]
+	env_pos = Tuple{Int,Int}[car.pos for car in s.env_cars]
 	carstate_probs = Dict{CarStateObs,Float64}[Dict{CarStateObs,Float64}() for i = 1:length(env_pos)]
 	##fuzz on true velocity
-	for (j,vel) in enumerate(VELOCITIES)
+	for (j,vel) in enumerate(pomdp.phys_param.VELOCITIES)
 		for i in 1:length(env_pos)
 			"""
 			NOTE!!! You can probably add sensor failure here VVV
 			"""
 			#a car is observed to not be in the scene with probability 1.
-			if env_pos[i] == 0
+			if env_pos[i][1] == 0
+				carstate_probs[i][CarStateObs(env_pos[i],1,s.env_cars[i].lane_change)] = 1.
 				continue
 			end
-			p_vel = pdf(j,s.env_car[i].vel,pomdp.sig)
+			p_vel = pdf(pomdp.phys_param.VELOCITIES,j,s.env_cars[i].vel,pomdp.o_vel_sig)
+			#println(p_vel)
 			if p_vel < 0.00001
 				break
 			end
-			##PLACEHOLDER
+			##PLACEHOLDER vvv this should be something else, sometimes observe wrong lane change
 			lane_change = s.env_cars[i].lane_change
-			carstate_probs[CarStateObs(env_pos[i],j,lane_change)] = p_vel
+			carstate_probs[i][CarStateObs(env_pos[i],j,lane_change)] = p_vel
 			#do normal cdf
 			#if below threshold: break
 			#multiply prob by relevant probability
@@ -325,9 +337,10 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 
 	end
 	##behavior model unobserved
-
-	distr = Dict{MLObs,Float64}()
-	#distr = Dict{MLObs,Float64}(MLState(agent_lane_,agent_vel_,CarStateObs[y[1] for y in env])=>prod([x[2] for x in env]) for env in carstate_probs)
+	#println(carstate_probs)
+	#distr = Dict{MLObs,Float64}()
+	carstate_probs_ = product(carstate_probs...)
+	distr = Dict{MLObs,Float64}([MLObs(agent_pos,agent_vel,CarStateObs[y[1] for y in env]) => prod([x[2] for x in env]) for env in carstate_probs_])
 
 	if abs(sum(values(distr))-1.) > 0.0001
 		println(d.d)
@@ -339,13 +352,5 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 
 end
 
-function pdf(vel_ind::Int,vel_true::Int,sig::Float64=2)
-	vu = vel_ind < length(VELOCITIES)? (VELOCITIES[vel_ind+1]+VELOCITIES[vel_ind])/2. : Inf
-	vl = vel_ind > 1? (VELOCITIES[vel_ind-1]+VELOCITIES[vel_ind])/2. : -Inf
-	zu = (vu-VELOCITIES[vel_true])/sig
-	zl = (vl-VELOCITIES[vel_true])/sig
-	return cdf(Normal(),zu)-cdf(Normal(),zl)
-end
-
 discount(pomdp::MLPOMDP) = pomdp.discount
-isterminal(pomdp::MLPOMDP,s::MLState) = false #placeholder
+isterminal(pomdp::MLPOMDP,s::MLState,a::Action) = is_crash(pomdp,s,a) #placeholder

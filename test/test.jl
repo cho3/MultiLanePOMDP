@@ -592,7 +592,7 @@ function test_reward()
 	#Case: cars occupy same space
 	assert(reward(p,MLState(1,2,CarState[cs_rchill]),MLAction(0,0)) == p.r_crash)
 	assert(reward(p,MLState(1,2,CarState[cs_mchill]),MLAction(0,0)) == p.r_crash)
-	assert(reward(p,MLState(1,2,CarState[cs_hrchill]),MLAction(0,0)) == p.r_crash)
+	assert(reward(p,MLState(1,2,CarState[cs_hchill]),MLAction(0,0)) == p.r_crash)
 	#CASE: cars intersect; vertically (gets railroaded from behind)
 	assert(reward(p,MLState(1,1,CarState[cs_r_fast]),MLAction(-1,0)) == p.r_crash)
 	assert(reward(p,MLState(1,4,CarState[cs_r_slow]),MLAction(1,0)) == p.r_crash)
@@ -615,10 +615,73 @@ end
 
 function test_transition()
 	println("\t\tTesting Transition Model")
+
+	#CASE: test that env car goes out of bounds at top boundary
+	#CASE: test that env car goes out of bounds at bottom boundary
+	#CASE: test basic encounter model  for slow
+	#CASE: test basic encounter model for fast
+
+end
+
+import Distributions: Normal, cdf
+
+function test_normal_pdf()
+	println("\t\tTesting normal_pdf for observation model")
+	VELOCITIES = collect(linspace(27.,35.,5))
+	#make sure tail behavior is right
+	assert(pdf(VELOCITIES,1,1) > 0.5)
+	assert(pdf(VELOCITIES,5,5) > 0.5)
+	#smake sure things sum to one, more or less
+	assert(abs(sum([pdf(VELOCITIES,i,3) for i=1:5])- 1.) < 0.00001)
+	assert(abs(sum([pdf(VELOCITIES,i,5) for i=1:5])- 1.) < 0.00001)
+	assert(abs(sum([pdf(VELOCITIES,i,1) for i=1:5])- 1.) < 0.00001)
+	#normal case?
 end
 
 function test_observe()
 	println("\t\tTesting Observation Model")
+
+	nb_lanes = 2
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=12.) #2.=>col_length=8
+	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
+
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+
+	#Env Car out of bounds
+	cs_oob = CarState((0,1),1,0,bs[1])
+	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
+	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.))
+	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
+	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.))
+	#env car going at a medium speed in the right lane heading left
+	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	#env car going at a medium speed in the left lane heading right
+	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
+	#env car is just chilling in the right/btwn/lhigh lane
+	cs_rchill = CarState((24,1),3,1,BehaviorModel("normal",31.,4.))
+	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.))
+	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
+
+	#CASE: no cars
+	s = MLState(1,1,CarState[cs_oob])
+	a = MLAction(0,0)
+	d = observation(p,s,a)
+	assert(length(d.d),1) #only truth
+	o = collect(keys(d.d))[1]
+	assert(o.agent_pos,1)
+	assert(o.agent_vel,1)
+	#CASE: one car doing whatever
+	s = MLState(3,4,CarState[cs_rchill])
+	a = MLAction(1,1)
+	d = observation(p,s,a)
+	assert(length(d.d),5)
+	for (o,prob) in d.d
+		assert(o.agent_pos,3)
+		assert(o.agent_vel,4)
+		assert(prob > 0.)
+		assert(prob <= 1.)
+	end
+
 end
 
 ##TODO: indexing and other helper functions testing
@@ -626,11 +689,12 @@ end
 function test_pomdp_model()
 	println("\tTesting POMDP Model Units...")
 	test_states()
-	#test_reward()
-	test_actions()
-	test_transition()
-	test_observe()
 	test_observations()
+	test_actions()
+	test_reward()
+	test_transition()
+	test_normal_pdf()
+	test_observe()
 end
 
 ##Crashing

@@ -69,6 +69,7 @@ type MLPOMDP <: POMDP
 	phys_param::PhysicalParam
 	BEHAVIORS::Array{BehaviorModel,1}
 	NB_PHENOTYPES::Int
+	o_vel_sig::Float64
 	function MLPOMDP(;nb_lanes::Int=2,
 					nb_cars::Int=1,
 					discount::Float64=0.99,
@@ -77,6 +78,7 @@ type MLPOMDP <: POMDP
 					decel_cost::Float64=-0.5,
 					lanechange_cost::Float64=-2.,
 					fuzz::Float64=0.1,
+					o_vel_sig::Float64=2.,
 					phys_param::PhysicalParam=PhysicalParam(nb_lanes))
 		assert((discount >= 0.) && (discount <= 1.))
 		assert((fuzz >= 0.) && (fuzz <= 1.))
@@ -85,6 +87,7 @@ type MLPOMDP <: POMDP
 		self.nb_col = convert(Int,round((phys_param.w_lane/phys_param.y_interval)*nb_lanes-1))
 		self.col_length = length(phys_param.POSITIONS)
 		self.nb_cars = nb_cars
+		self.o_vel_sig = o_vel_sig
 		#behaviors...
 		self.r_crash = r_crash
 		self.accel_cost = accel_cost
