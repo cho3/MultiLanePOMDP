@@ -159,7 +159,7 @@ create_transition_distribution(::MLPOMDP) = MLStateDistr(Dict{MLState,Float64}()
 
 function rev_1d_interp(arr::Array{Float64,1},x::Float64,fx::Float64)
 	#NOTE! This is not actually how interpolation works
-	rng = searchsorted(arr,fx)
+	rng = searchsorted(arr,x)
 	start = min(rng.start,length(arr))
 	stop = max(rng.stop,1)
 	if start <= stop
@@ -167,8 +167,10 @@ function rev_1d_interp(arr::Array{Float64,1},x::Float64,fx::Float64)
 		return Dict{Int,Float64}(start=>fx) #0.4 syntax
 	end
 	#stop is the smaller bin, start is hte larger bin
-	return Dict{Int,Float64}(stop=> fx*(arr[start]-fx)/(arr[start]-arr[stop]),
-								start=>fx*(fx-arr[stop])/(arr[start]-arr[stop]))
+	d = Dict{Int,Float64}(stop=> fx*(arr[start]-x)/(arr[start]-arr[stop]),
+								start=>fx*(x-arr[stop])/(arr[start]-arr[stop]))
+	assert(abs(sum(values(d))-fx),0.000001, <=)
+	return d
 end
 
 function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create_transition_distribution(pomdp))
@@ -226,9 +228,9 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			vel_probs = deepcopy(vel_inds)
 			#equal probability of doing nothing or the opposite
 			if !(vel in keys(vel_probs))
-				vel_probs[vel] = (1.-behavior.rationality)/2.
 				vel1 = collect(keys(vel_probs))[1]
 				vel_ = vel - sign(vel1-vel) #if going faster, then maybe go slower for whatever reason and vv
+				vel_probs[vel] = (1.-behavior.rationality)/2.
 				if (vel_ < 1) || (vel_ > length(VELOCITIES))
 					#oob--just dump the rest of the probabilty to the current bin
 					vel_probs[vel] = 1.-behavior.rationality
@@ -263,13 +265,14 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			#placeholder
 
 			lanechange = get_mobil_lane_change(pomdp.phys_param,env_car,neighborhood)
-			lane_change_other = setdiff([-1;0;1],[lane_change])
+			lane_change_other = setdiff([-1;0;1],[lanechange])
 			lanechange_probs = Dict{Int,Float64}()
-			lanechange_probs[lanechange] = behavior.rationality
-			for lanechange in lane_change_other
-				lanechange_probs[lanechange] = (1.-behavior.rationality)/(length(lane_change_other))
+			lanechange_probs[lanechange] = length(lane_change_other) != 0?behavior.rationality:1.
+			for lanechange_ in lane_change_other
+				lanechange_probs[lanechange_] = (1.-behavior.rationality)/(length(lane_change_other))
 			end
-
+			assert(abs(sum(values(lanechange_probs))-1.),0.0000001,<,"lanechange_probs")
+			assert(abs(sum(values(pos_probs))-1.),0.0000001,<,"pos_probs")
 			comp_probs = product(pos_probs,lane_probs,vel_probs,lanechange_probs)
 			#position, velocity, and lane changing are uncoupled
 			#next_state_probs = Dict{CarState,Float64}()

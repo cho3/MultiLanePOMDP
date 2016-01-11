@@ -4,8 +4,6 @@
 #TODO: simple testing--e.g. make sure it runs properly--will do when I build
 #				the simulator
 
-using PyPlot #make my life easy
-
 #just guestimate behavior based on how polite they are as a proxy for
 # aggressive/normal/cautious
 #aggressive=red,normal=yellow,cautious=blue,error=purple
@@ -119,6 +117,7 @@ end
 
 function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	#Placeholder!
+	clf()
 	#make the initial canvas
 	W = pomdp.phys_param.lane_length
 	H = pomdp.phys_param.w_lane*(pomdp.nb_col+1)/2

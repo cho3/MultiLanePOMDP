@@ -32,9 +32,9 @@ import StatsBase: WeightVec, sample
 ##TODO: move MOBIL and IDM to another file(s)
 
 ##This function is really nice for debugging, so I'm dumping it here
-function assert(expr,val,fn::Function= ==)
+function assert(expr,val,fn::Function= ==,varname::AbstractString="")
 	if !fn(expr,val)
-		error("Assertion failed: expected $val, got $expr")
+    error("Assertion failed: $varname : expected $val, got $expr")
 	end
 end
 

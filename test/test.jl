@@ -613,6 +613,22 @@ function test_actions()
 	assert(domain(A_) == domain(A))
 end
 
+function test_rev_1d_interp()
+	println("\t\tTesting rev_1d_interp")
+	arr = Float64[10.;20.;30.;40.;50.]
+	#case: collision
+	assert(rev_1d_interp(arr,10.,1.),Dict{Int,Float64}(1=>1.))
+	assert(rev_1d_interp(arr,20.,1.),Dict{Int,Float64}(2=>1.))
+	assert(rev_1d_interp(arr,30.,1.),Dict{Int,Float64}(3=>1.))
+	#case: oob
+	assert(rev_1d_interp(arr,0.,1.),Dict{Int,Float64}(1=>1.))
+	assert(rev_1d_interp(arr,60.,1.),Dict{Int,Float64}(5=>1.))
+	#case: in between
+	assert(rev_1d_interp(arr,15.,1.),Dict{Int,Float64}(1=>0.5,2=>0.5))
+	assert(rev_1d_interp(arr,25.,1.),Dict{Int,Float64}(3=>0.5,2=>0.5))
+	assert(rev_1d_interp(arr,37.,1.),Dict{Int,Float64}(4=>0.7,3=>0.3))
+end
+
 function test_transition()
 	println("\t\tTesting Transition Model")
 
@@ -735,7 +751,7 @@ function test_transition()
 		end
 	end
 	#CASE: normal evolution (call idm model)
-	s = MLState(2,1,CarState[cs_oob])
+	s = MLState(3,3,CarState[cs_rchill])
 	a = MLAction(0,0)
 	d = transition(p,s,a)
 	#something
@@ -810,6 +826,7 @@ function test_pomdp_model()
 	test_observations()
 	test_actions()
 	test_reward()
+	test_rev_1d_interp()
 	test_transition()
 	test_normal_pdf()
 	test_observe()

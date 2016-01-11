@@ -51,24 +51,23 @@ function simulate(pomdp::MLPOMDP,policy::Function;
       a = policy(s,rng=polRNG)
       state_hist = MLState[state_hist; s]
       action_hist = MLAction[action_hist; a]
+      if isterminal(pomdp,s,a)
+        break
+      end
       R += gamma*reward(pomdp,s,a)
       d = transition(pomdp,s,a)
       s = rand!(simRNG,s,d)
       #s = next(simRNG,s,a)
-      if isterminal(pomdp,s,a)
-        break
-      end
       gamma *= discount
     end
     return R,state_hist,action_hist
 end
 
-using Interact
 function display_sim(pomdp::MLPOMDP,S::Array{MLState,1},A::Array{MLAction,1})
   warn("This should be run in a Jupyter Notebook")
   assert(length(S) == length(A))
-
-  @manipulate for i = 1:length(S)
+  f = figure()
+  @manipulate for i = 1:length(S); withfig(f) do
     visualize(pomdp,S[i],A[i])
   end
 end
