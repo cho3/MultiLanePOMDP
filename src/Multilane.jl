@@ -6,9 +6,9 @@
 #	and is grounded in reality with physical values and uses the IDM and MOBIL model for env cars
 
 using POMDPs
-using Distributions
 using POMDPToolbox
-using StatsBase
+using PyPlot
+using Interact #will give warning for deprecated types (julia v0.4)
 
 import POMDPs: n_states, n_actions, n_observations # space sizes for discrete problems
 import POMDPs: discount, states, actions, observations # model functions
@@ -17,7 +17,7 @@ import POMDPs: create_state, create_action, create_observation # s,a,o initializ
 import POMDPs: length, index, weight, pdf # discrete distribution functions
 import POMDPs: rand!, pdf # common distribution functions
 import POMDPs: domain # space functions
-import POMDPs: create_transition_distribution, create_observation_distribution, create_belief, initial_belief 
+import POMDPs: create_transition_distribution, create_observation_distribution, create_belief, initial_belief
 import POMDPs: update, updater
 
 import Base.convert
@@ -25,10 +25,18 @@ import Base.==
 import Base.hash
 
 import Iterators.product
-using Distributions
+import Distributions: Normal, cdf
+import StatsBase: WeightVec, sample
 
 ##TODO: implement with two cars? (else no lane changing will occur)
 ##TODO: move MOBIL and IDM to another file(s)
+
+##This function is really nice for debugging, so I'm dumping it here
+function assert(expr,val,fn::Function= ==)
+	if !fn(expr,val)
+		error("Assertion failed: expected $val, got $expr")
+	end
+end
 
 include("IDM.jl")
 include("MOBIL.jl")
@@ -50,11 +58,11 @@ This is derived from where a cautious car will accelerate from the slowest speed
 (35 m/s, with a true desired speed of 36, but lower just for sanity), and this is the velocity it has at each
 0.75 second time slice.
 
-I'm thinking it'll transition to the next velocity state to the nearest as predicted by IDM with prob. 
+I'm thinking it'll transition to the next velocity state to the nearest as predicted by IDM with prob.
 0.9*rationality = (1-fuzz)*rationality, and with 0.05*rationality transition to the next closest states on
 either side = (fuzz/2)*rationality (or would something based on the normal distribution be more sensible)
 
-w/ prob 1-r = 1-rationality, it'll lane change or choose a speed update according to a different set of idm 
+w/ prob 1-r = 1-rationality, it'll lane change or choose a speed update according to a different set of idm
 parameters
 """
 """

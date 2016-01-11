@@ -226,15 +226,15 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			vel_probs = deepcopy(vel_inds)
 			#equal probability of doing nothing or the opposite
 			if !(vel in keys(vel_probs))
-				vel_probs[vel] = (1-behavior.rationality)/2.
+				vel_probs[vel] = (1.-behavior.rationality)/2.
 				vel1 = collect(keys(vel_probs))[1]
 				vel_ = vel - sign(vel1-vel) #if going faster, then maybe go slower for whatever reason and vv
-				if (vel_ < 1) || (vel_) > length(VELOCITIES)
-					#oob--just dump the rest of the probabilty to the current bing
-					vel_probs[vel] = 1-behavior.rationality
+				if (vel_ < 1) || (vel_ > length(VELOCITIES))
+					#oob--just dump the rest of the probabilty to the current bin
+					vel_probs[vel] = 1.-behavior.rationality
 				else
 					#normal case: dump to the opposite bin
-					vel_probs[vel] = (1-behavior.rationality)/2.
+					vel_probs[vel_] = (1.-behavior.rationality)/2.
 				end
 				#TODO:something
 			else
@@ -259,7 +259,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 
 				#TODO:the something, but with full irrationality probability
 			end
-			assert(abs(sum(values(vel_probs))-1.) < 0.0000001)
+			assert(abs(sum(values(vel_probs))-1.),0.0000001,<)
 			#placeholder
 
 			lanechange = get_mobil_lane_change(pomdp.phys_param,env_car,neighborhood)

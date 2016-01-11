@@ -1,9 +1,7 @@
 #simulator.jl
 #basically a place to hold next, and to call a sequence, get relevant statistics, and visualize.
 
-import StatsBase: WeightVec, sample
-
-function rand!(rng::AbstractRNG,s::MLState,d::MLStateDistribution)
+function rand!(rng::AbstractRNG,s::MLState,d::MLStateDistr)
   states = MLState[]
   probs = Float64[]
   for (state,prob) in d.d
@@ -14,7 +12,7 @@ function rand!(rng::AbstractRNG,s::MLState,d::MLStateDistribution)
   return s
 end
 
-function rand!(rng::AbstractRNG,o::MLObs,d::MLObsDistribution)
+function rand!(rng::AbstractRNG,o::MLObs,d::MLObsDistr)
   obss = MLState[]
   probs = Float64[]
   for (obs,prob) in d.d
@@ -34,15 +32,15 @@ function observe(rng::AbstractRNG,s::MLState,a::MLAction)
 end
 
 function init(pomdp::MLPOMDP;rng::AbstractRNG=MersenneTwister(34985))
-  return MLState(1,convert(Int,round(length(pomdp.phys_parma.nb_vel_bins))),
-                CarState[CarState((0,1),1,0,pomdp.BEHAVIORs[1]) for i = 1:pomdp.nb_cars])
+  return MLState(1,convert(Int,round(length(pomdp.phys_param.nb_vel_bins))),
+                CarState[CarState((0,1),1,0,pomdp.BEHAVIORS[1]) for i = 1:pomdp.nb_cars])
 end
 
 function simulate(pomdp::MLPOMDP,policy::Function;
           discount::Float64=0.99,
           nb_timesteps::Int=20,
           simRNG::AbstractRNG=MersenneTwister(1336),
-          polRNG::AbstractRNG=MersenneTwisteR(53487523))
+          polRNG::AbstractRNG=MersenneTwister(53487523))
     #init
     state_hist = Array{MLState,1}[]
     action_hist = Array{MLAction,1}[]
@@ -50,12 +48,12 @@ function simulate(pomdp::MLPOMDP,policy::Function;
     R = 0.
     s = init(pomdp,rng=simRNG) #function does not yet exist
     for t = 1:nb_timesteps
-      push!(state_hist,s)
-      push!(action_hist,a)
       a = policy(s,rng=polRNG)
-      R += gamma*reward(s,a)
+      state_hist = MLState[state_hist; s]
+      action_hist = MLAction[action_hist; a]
+      R += gamma*reward(pomdp,s,a)
       d = transition(pomdp,s,a)
-      s = rand!(pomdp,s,d)
+      s = rand!(simRNG,s,d)
       #s = next(simRNG,s,a)
       if isterminal(pomdp,s,a)
         break

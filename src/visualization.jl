@@ -103,6 +103,10 @@ function draw_direction(pomdp::MLPOMDP,x::Float64,y::Float64,v_nom::Float64,s::C
 end
 
 function draw_sedan(pomdp::MLPOMDP,s::CarState,v_nom::Float64)
+	if s.pos[1] == 0
+		#oob
+		return
+	end
 	x_ctr = pomdp.phys_param.POSITIONS[s.pos[1]]
 	y_ctr = pomdp.phys_param.y_interval*s.pos[2]
 	##TODO: something to do with behavior and color
