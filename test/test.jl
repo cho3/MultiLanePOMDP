@@ -12,8 +12,8 @@ using Base.Test
 ##UNIT TESTS##
 ##############
 
-function assert(expr,val)
-	if expr != val
+function assert(expr,val,fn::Function= ==)
+	if !fn(expr,val)
 		error("Assertion failed: expected $val, got $expr")
 	end
 end
@@ -706,10 +706,11 @@ function test_transition()
 	for s in ss_
 		car = s.env_cars[1]
 		if car.pos[1] == p.col_length
-			assert(car.vel <= s.agent_vel)
+			assert(car.vel,s.agent_vel,<=)
 		elseif car.pos[1] == 1
-			assert(car.vel >= s.agent_vel)
-		else
+			assert(car.vel,s.agent_vel,>=)
+		elseif car.pos[1] != 0
+			println(car)
 			error("Transition failed: encounter model is summoning cars in the middle")
 		end
 	end
@@ -725,10 +726,11 @@ function test_transition()
 	for s in ss_
 		car = s.env_cars[1]
 		if car.pos[1] == p.col_length
-			assert(car.vel <= s.agent_vel)
+			assert(car.vel,s.agent_vel,<=)
 		elseif car.pos[1] == 1
-			assert(car.vel >= s.agent_vel)
-		else
+			assert(car.vel,s.agent_vel,>=)
+		elseif car.pos[1] != 0
+			println(car)
 			error("Transition failed: encounter model is summoning cars in the middle")
 		end
 	end

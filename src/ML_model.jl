@@ -164,7 +164,7 @@ function rev_1d_interp(arr::Array{Float64,1},x::Float64,fx::Float64)
 	stop = max(rng.stop,1)
 	if start <= stop
 		#on the off chance it actually lands squarely on a division
-		return Dict{Int,Float64}(start=>1.) #0.4 syntax
+		return Dict{Int,Float64}(start=>fx) #0.4 syntax
 	end
 	#stop is the smaller bin, start is hte larger bin
 	return Dict{Int,Float64}(stop=> fx*(arr[start]-fx)/(arr[start]-arr[stop]),
@@ -217,20 +217,49 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 				#push!(env_car_next_states,next_state_probs)
 				continue
 			end
-			pos_inds = rev_1d_interp(POSITIONS,pos_m,behavior.rationality) #1.0 corresponds to total probability of 1.
+			pos_inds = rev_1d_interp(POSITIONS,pos_m,1.0) #1.0 corresponds to total probability of 1.
 			#TODO: LANE CHANGE STUFF
 			#TODO: add probability of doing something else--e.g. lane change, speeding up more than expected or braking
 
 			pos_probs = pos_inds#Dict{Int,Float64}() #placeholder, built off pos_inds
 			lane_probs = Dict{Int,Float64}(lane_=>1.)
-			vel_probs = vel_inds
+			vel_probs = deepcopy(vel_inds)
 			#equal probability of doing nothing or the opposite
 			if !(vel in keys(vel_probs))
 				vel_probs[vel] = (1-behavior.rationality)/2.
+				vel1 = collect(keys(vel_probs))[1]
+				vel_ = vel - sign(vel1-vel) #if going faster, then maybe go slower for whatever reason and vv
+				if (vel_ < 1) || (vel_) > length(VELOCITIES)
+					#oob--just dump the rest of the probabilty to the current bing
+					vel_probs[vel] = 1-behavior.rationality
+				else
+					#normal case: dump to the opposite bin
+					vel_probs[vel] = (1-behavior.rationality)/2.
+				end
 				#TODO:something
 			else
+				vmax = maximum(keys(vel_probs))
+				vmin = minimum(keys(vel_probs))
+				#check against both to get the sign for the other case where you do something else
+				#NOTE: there are only two keys so this should work
+				if vel == vmax
+					#then we should be going up in spd when being irrationality
+					vel_ = vel + 1
+				else #if vel == vmin
+					#then we should be going down in spd when being irrationality
+					vel_ = vel - 1
+				end
+
+				#check edge cases
+				if (vel_ < 1) || (vel_ > length(VELOCITIES))
+					vel_probs[vel] += 1-behavior.rationality
+				else
+					vel_probs[vel_] = 1-behavior.rationality
+				end
+
 				#TODO:the something, but with full irrationality probability
 			end
+			assert(abs(sum(values(vel_probs))-1.) < 0.0000001)
 			#placeholder
 
 			lanechange = get_mobil_lane_change(pomdp.phys_param,env_car,neighborhood)
@@ -251,17 +280,17 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			##position and velocities are coupled
 			#TODO: check if this is even consistent
 			pos_inds1 = [(x[1],x[2],) for x in product([pomdp.col_length],valid_col_top)] #SLOW CARS
-			pos_vel1 = [(x[1],x[2],x[3],x[4]) for x in product(pos_inds1,collect(agent_vel_:nb_vel_bins),[-1;0;1],BEHAVIORS)]
+			pos_vel1 = [(x[1],x[2],x[3],x[4]) for x in product(pos_inds1,collect(1:agent_vel_),[-1;0;1],pomdp.BEHAVIORS)]
 			pos_inds2 = [(x[1],x[2],) for x in product([1],valid_col_bot)] #FAST CARS
-			pos_vel2 = [(x[1],x[2],x[3],x[4]) for x in product(pos_inds2,collect(1:agent_vel_),[-1;0;1],BEHAVIORS)]
+			pos_vel2 = [(x[1],x[2],x[3],x[4]) for x in product(pos_inds2,collect(agent_vel_:pomdp.phys_param.nb_vel_bins),[-1;0;1],pomdp.BEHAVIORS)]
 			#TODO: prune pos_inds based on location of other cars
 
 			next_state_probs = Dict{CarState,Float64}()
 			for x in pos_vel1
-				next_state_probs[CarState(x[1],x[2],x[3],x[4])] = (1.)/(length(pos_vel1)+length(pos_vel2))
+				next_state_probs[CarState(x[1],x[2],x[3],x[4])] = (pomdp.encounter_prob)/(length(pos_vel1)+length(pos_vel2))
 			end
 			for x in pos_vel2
-				next_state_probs[CarState(x[1],x[2],x[3],x[4])] = (1.)/(length(pos_vel1)+length(pos_vel2))
+				next_state_probs[CarState(x[1],x[2],x[3],x[4])] = (pomdp.encounter_prob)/(length(pos_vel1)+length(pos_vel2))
 			end
 
 			#for now, assume no one is changing lanes while they come into your horizon
