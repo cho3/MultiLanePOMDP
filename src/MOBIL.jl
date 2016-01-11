@@ -73,6 +73,17 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 
 	x = arr[i]
 
+	#going offroad is not allowed
+	if x.pos[2] <= 1
+		#can't go right
+		neighborhood.ahead_dist[-1] = -100.
+		neighborhood.behind_dist[-1] = -100.
+	elseif x.pos[2] >= p.NB_POS/length(p.POSITIONS)
+		#can't go left
+		neighborhood.ahead_dist[1] = -100.
+		neighborhood.behind_dist[1] = -100.
+	end
+
 	for (j,car) in enumerate(arr)
 		if i == j
 			continue
@@ -143,7 +154,7 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::Ca
 		s_behind = get(neighborhood.behind_dist,0,1000.)
 		a_follower = get_idm_dv(neighborhood.behind_idm[0],dt,v_behind,dv_behind,s_behind)/dt #distance behind is a negative number
 		dv_behind_ = dv_behind + get(neighborhood.ahead_dv,0,0.)
-		s_behind_ = s_behind + get(neighborhood.ahead_dist,0,1000.) + l_car
+		s_behind_ = s_behind + get(neighborhood.ahead_dist,0,1000.) + p.l_car
 		a_follower_ = get_idm_dv(neighborhood.behind_idm[0],dt,v_behind,dv_behind_,s_behind_)/dt
 	end
 
@@ -153,7 +164,7 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::Ca
 	else
 		v_left = v + neighborhood.behind_dv[1]
 		dv_left = neighborhood.behind_dv[1] + get(neighborhood.ahead_dv,1,0.)
-		s_left = get(neighborhood.behind_dist,1,1000.) + get(neighborhood.ahead_dist,1,1000.)+l_car
+		s_left = get(neighborhood.behind_dist,1,1000.) + get(neighborhood.ahead_dist,1,1000.)+p.l_car
 		a_follower_left = get_idm_dv(neighborhood.behind_idm[1],dt,v_left,dv_left,s_left)/dt
 		dv_left_ = get(neighborhood.behind_dv,1,0.)
 		s_left_ = get(neighborhood.behind_dist,1,1000.)
@@ -166,44 +177,25 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::Ca
 	else
 		v_right = v + neighborhood.behind_dv[-1]
 		dv_right = neighborhood.behind_dv[-1] + get(neighborhood.ahead_dv,-1,0.)
-		s_right = neighborhood.behind_dist[-1] + get(neighborhood.ahead_dist,-1,1000.) + l_car
+		s_right = neighborhood.behind_dist[-1] + get(neighborhood.ahead_dist,-1,1000.) + p.l_car
 		a_follower_right = get_idm_dv(neighborhood.behind_idm[-1],dt,v_right,dv_right,s_right)/dt
 		dv_right_ = neighborhood.behind_dv[-1]
 		s_right_ = neighborhood.behind_dist[-1]
 		a_follower_right_ = get_idm_dv(neighborhood.behind_idm[-1],dt,v_right,dv_right_,s_right_)/dt
 	end
 
-	"""
-	println("Self")
-	println(a_self_left)
-	println(a_self_right)
-	println(a_self)
-	println("Left")
-	println(a_follower_left_)
-	println(a_follower_left)
-	println("Follower")
-	println(a_follower_)
-	println(a_follower_)
-	println("Right")
-	println(a_follower_right_)
-	println(a_follower_right)
-	"""
 
 	#calculate incentives
 	left_crit = a_self_left-a_self+p_mobil.p*(a_follower_left_-a_follower_left+a_follower_-a_follower)
 	right_crit = a_self_right-a_self+p_mobil.p*(a_follower_right_-a_follower_right+a_follower_-a_follower)
 
-	"""
-	println(left_crit)
-	println(right_crit)
-	"""
 
 	#check safety criterion, also check if there is physically space
 	if (a_follower_right_ < -p_mobil.b_safe) && (a_follower_left_ < -p_mobil.b_safe)
 		return 0 #neither safe
-	elseif (a_follower_left_ < -p_mobil.b_safe) || (neighborhood.behind_dist[1] < 0.) || (neighborhood.ahead_dist[1] < 0.)
+	elseif (a_follower_left_ < -p_mobil.b_safe) || (get(neighborhood.behind_dist,1,1000.) < 0.) || (get(neighborhood.ahead_dist,1,1000.) < 0.)
 		left_crit = -100.
-	elseif (a_follower_right_ < -p_mobil.b_safe) || (neighborhood.behind_dist[-1] < 0.) || (neighborhood.ahead_dist[-1] < 0.)
+	elseif (a_follower_right_ < -p_mobil.b_safe) || (get(neighborhood.behind_dist,-1,1000.) < 0.) || (get(neighborhood.ahead_dist,-1,1000.) < 0.)
 		right_crit = -100.
 	end
 

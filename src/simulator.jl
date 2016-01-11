@@ -71,3 +71,4 @@ function display_sim(pomdp::MLPOMDP,S::Array{MLState,1},A::Array{MLAction,1})
     visualize(pomdp,S[i],A[i])
   end
 end
+end

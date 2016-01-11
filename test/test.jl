@@ -12,9 +12,9 @@ using Base.Test
 ##UNIT TESTS##
 ##############
 
-function assert(expr,val,fn::Function= ==)
+function assert(expr,val,fn::Function= ==,varname::AbstractString="")
 	if !fn(expr,val)
-		error("Assertion failed: expected $val, got $expr")
+    error("Assertion failed: $varname : expected $val, got $expr")
 	end
 end
 
@@ -262,7 +262,7 @@ function test_get_mobil_lane_change()
 	assert(get_mobil_lane_change(pp,cs[2],nbhd),1)
 	###repeat for other side
 	#CASE: it's faster and there is space
-	cs = CarState[CarState((48,1,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((44,1,),31,0,BehaviorModel("cautious",27.,4.)),CarState((24,3,),3,0,BehaviorModel("aggressive",35.,4.))]
+	cs = CarState[CarState((48,1,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((44,3,),1,0,BehaviorModel("cautious",27.,4.)),CarState((24,3,),3,0,BehaviorModel("aggressive",35.,4.))]
 	nbhd = get_adj_cars(pp,cs,3)
 	assert(get_mobil_lane_change(pp,cs[3],nbhd),-1)
 	#CASE: it's slower and there is space
@@ -284,7 +284,7 @@ function test_mobil()
 	test_car_neighborhood_equality()
 	test_car_neighborhood_hashing()
 	test_get_adj_cars()
-	#test_get_mobil_lane_change()
+	test_get_mobil_lane_change()
 	#NOTE: not working, but since we'll probably be limited to 1 car in the foreseeable future, this isn't the highest priority thing
 end
 
