@@ -90,6 +90,9 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 		end
 		pos = car.pos
 		vel = car.vel
+		if car.pos[1] < 1
+			continue
+		end
 		dlane = pos[2]-x.pos[2]
 		if abs(dlane) > 2 #not in or adjacent to current lane
 			break

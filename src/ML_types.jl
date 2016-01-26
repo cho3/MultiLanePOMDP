@@ -63,6 +63,8 @@ type MLPOMDP <: POMDP
 	r_crash::Float64
 	accel_cost::Float64
 	decel_cost::Float64
+	invalid_cost::Float64
+	lineride_cost::Float64
 	lanechange_cost::Float64
 	fuzz::Float64
 	discount::Float64
@@ -77,6 +79,8 @@ type MLPOMDP <: POMDP
 					r_crash::Float64=-100000.,
 					accel_cost::Float64=-1.,
 					decel_cost::Float64=-0.5,
+					invalid_cost::Float64 = -1.,
+					lineride_cost::Float64 = -1.,
 					lanechange_cost::Float64=-2.,
 					fuzz::Float64=0.1,
 					o_vel_sig::Float64=2.,
@@ -96,6 +100,8 @@ type MLPOMDP <: POMDP
 		self.accel_cost = accel_cost
 		self.decel_cost = decel_cost
 		self.lanechange_cost = lanechange_cost
+		self.invalid_cost = invalid_cost
+		self.lineride_cost = lineride_cost
 		self.discount = discount
 		self.fuzz = fuzz
 		self.phys_param = phys_param

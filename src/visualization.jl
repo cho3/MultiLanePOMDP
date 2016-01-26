@@ -157,7 +157,7 @@ function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	hw = 0.5*pomdp.phys_param.w_car
 	hl = 1.*hw
 	w = 0.75*hw
-	dx = 0.
+	dx = a.vel*2.5*hl
 	dy = a.lane_change*pomdp.phys_param.y_interval
 	dy = dy != 0. ? dy - sign(dy)*hl: dy
 	arrow(x_ctr,y_ctr,dx,dy,width=w,head_width=hw,head_length=hl,fc="#DF7401", ec="#0404B4",alpha=0.75)

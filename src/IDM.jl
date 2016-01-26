@@ -101,6 +101,7 @@ function build_normal_idm(v0::Float64,s0::Float64)
 	return IDMParam(a,b,T,v0,s0)
 end
 
+#TODO: use Enum or something to avoid misspelling errors
 function IDMParam(s::AbstractString,v0::Float64,s0::Float64)
 	if lowercase(s) == "cautious"
 		return build_cautious_idm(v0,s0)

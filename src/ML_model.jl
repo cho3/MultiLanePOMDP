@@ -144,6 +144,14 @@ function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	end
 	if abs(a.lane_change) != 0
 		cost += pomdp.lanechange_cost
+		if (a.lane_change == -1) && (s.agent_pos == 1)
+			cost += pomdp.invalid_cost
+		elseif (a.lane_change == 1) && (s.agent_pos == pomdp.nb_col)
+			cost += pomdp.invalid_cost
+		end
+	end
+	if mod(s.agent_pos,2) == 0 #on a lane divider--an
+		cost += pomdp.lineride_cost
 	end
 
 
@@ -155,6 +163,7 @@ type MLStateDistr <: AbstractDistribution
 	d::Dict{MLState,Float64} #e.g. sparse vector
 end
 pdf(d::MLStateDistr,s::MLState) = get(d.d,s,0.)
+support(d::MLStateDistr) = keys(d.d)
 create_transition_distribution(::MLPOMDP) = MLStateDistr(Dict{MLState,Float64}())
 
 function rev_1d_interp(arr::Array{Float64,1},x::Float64,fx::Float64)
@@ -192,8 +201,9 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 
 	##TODO: check each car's location to update
 	##		need to estimate next position for each car first, and then check
-	valid_col_top = Int[1;pomdp.nb_col]
-	valid_col_bot = Int[1;pomdp.nb_col]
+	#TODO: update these things, do a second pass for encounter model
+	valid_col_top = collect(1:pomdp.nb_col)
+	valid_col_bot = collect(1:pomdp.nb_col)
 
 	env_car_next_states = Array{Dict{CarState,Float64},1}[]
 	for (i,env_car) in enumerate(s.env_cars)
@@ -213,7 +223,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[s.agent_vel])+0.5*dt*dvel_ms #x+vt+1/2at2
 			if (pos_m > POSITIONS[end]) || (pos_m < POSITIONS[1])
 				#if out of scene, move to out of scene state
-				next_state_probs = Dict{CarState,Float64}(CarState((0,1),1,0,behavior) => 1.0)
+				next_state_probs = Dict{CarState,Float64}(CarState((0,1),1,0,pomdp.BEHAVIORS[1]) => 1.0)
 				env_car_next_states = [env_car_next_states;next_state_probs]
 				#append!(env_car_next_states,[next_state_probs])
 				#push!(env_car_next_states,next_state_probs)
@@ -331,6 +341,7 @@ type MLObsDistr <:AbstractDistribution
 	d::Dict{MLObs,Float64} #e.g. sparse vector
 end
 pdf(d::MLObsDistr,o::MLObs) = get(d.d,o,0.)
+support(d::MLObsDistr) = keys(d.d)
 create_observation_distribution(::MLPOMDP) = MLObsDistr(Dict{MLObs,Float64}())
 
 
