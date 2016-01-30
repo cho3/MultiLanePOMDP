@@ -25,10 +25,12 @@
 type MLState <: State
 	agent_pos::Int #row
 	agent_vel::Int
+	sensor_failed::Bool
 	env_cars::Array{CarState,1}
 end #MLState
-==(a::MLState,b::MLState) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars)
-Base.hash(a::MLState,h::UInt64=zero(UInt64)) = hash(a.agent_vel,hash(a.agent_pos,hash(a.env_cars,h)))
+MLState(pos::Int,vel::Int,cars::Array{CarState,1}) = MLState(pos,vel,false,cars)
+==(a::MLState,b::MLState) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars) && (a.sensor_failed == b.sensor_failed)
+Base.hash(a::MLState,h::UInt64=zero(UInt64)) = hash(a.agent_vel,hash(a.agent_pos,hash(a.env_cars,hash(a.sensor_failed,h))))
 
 
 type MLAction <:Action
@@ -50,10 +52,23 @@ Base.hash(a::CarStateObs,h::UInt64=zero(UInt64)) = hash(a.pos,hash(a.vel,hash(a.
 type MLObs <: Observation
 	agent_pos::Int #col
 	agent_vel::Int #index in velocity vector?
+	sensor_failed::Bool
 	env_cars::Array{CarStateObs,1}
 end
-==(a::MLObs,b::MLObs) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars)
-Base.hash(a::MLObs,h::UInt64=zero(UInt64)) = hash(a.agent_pos,hash(a.agent_vel,hash(a.env_cars,h)))
+MLObs(p::Int,v::Int,cars::Array{CarStateObs,1}) = MLObs(p,v,false,cars)
+==(a::MLObs,b::MLObs) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars) && (a.sensor_failed == b.sensor_failed)
+Base.hash(a::MLObs,h::UInt64=zero(UInt64)) = hash(a.agent_pos,hash(a.agent_vel,hash(a.env_cars,hash(a.sensor_failed,h))))
+
+type PartialFailObs <:Observation
+	agent_pos::Int
+	agent_vel::Int
+end
+==(a::PartialFailObs,b::PartialFailObs) = (a.agent_pos==b.agent_pos) && (a.agent_vel == b.agent_vel)
+Base.hash(a::PartialFailObs,h::UInt64=zero(UInt64)) = hash(a.agent_pos,hash(a.agent_vel,h))
+
+type CompleteFailObs <: Observation
+end
+
 
 type MLPOMDP <: POMDP
 	nb_col::Int
@@ -73,6 +88,9 @@ type MLPOMDP <: POMDP
 	NB_PHENOTYPES::Int
 	o_vel_sig::Float64
 	encounter_prob::Float64
+	p_fail_enter::Float64
+	p_fail_persist::Float64
+	complete_failure::Bool #do you have access to own position and velocity?
 	function MLPOMDP(;nb_lanes::Int=2,
 					nb_cars::Int=1,
 					discount::Float64=0.99,
@@ -85,7 +103,10 @@ type MLPOMDP <: POMDP
 					fuzz::Float64=0.1,
 					o_vel_sig::Float64=2.,
 					encounter_prob::Float64=0.5,
-					phys_param::PhysicalParam=PhysicalParam(nb_lanes))
+					phys_param::PhysicalParam=PhysicalParam(nb_lanes),
+					p_fail_enter::Float64=0.05,
+					p_fail_persist::Float64=0.5,
+					complete_failure::Bool=false)
 		assert((discount >= 0.) && (discount <= 1.))
 		assert((fuzz >= 0.) && (fuzz <= 1.))
 
@@ -107,6 +128,9 @@ type MLPOMDP <: POMDP
 		self.phys_param = phys_param
 		self.BEHAVIORS = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[phys_param.v_slow;phys_param.v_med;phys_param.v_fast],[phys_param.l_car])]
 		self.NB_PHENOTYPES = length(self.BEHAVIORS)
+		self.p_fail_enter = p_fail_enter
+		self.p_fail_persist = p_fail_persist
+		self.complete_failure = complete_failure
 
 		return self
 	end

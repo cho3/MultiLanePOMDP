@@ -162,6 +162,11 @@ function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	dy = dy != 0. ? dy - sign(dy)*hl: dy
 	arrow(x_ctr,y_ctr,dx,dy,width=w,head_width=hw,head_length=hl,fc="#DF7401", ec="#0404B4",alpha=0.75)
 	####END TODO
+	if s.sensor_failed && pomdp.complete_failure
+		annotate("???",xy=(x_ctr,y_ctr),size=480)
+	elseif s.sensor_failed
+		annotate("?",xy=(x_ctr,y_ctr),size=240)
+	end
 
 	v_nom = pomdp.phys_param.VELOCITIES[s.agent_vel]
 	#draw environment cars

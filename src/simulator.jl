@@ -1,6 +1,8 @@
 #simulator.jl
 #basically a place to hold next, and to call a sequence, get relevant statistics, and visualize.
 
+typealias MLObservation Union{MLObs,PartialFailObs,CompleteFailObs}
+
 function rand!(rng::AbstractRNG,s::MLState,d::MLStateDistr)
   states = MLState[]
   probs = Float64[]
@@ -39,6 +41,22 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
   car_states = CarState[]
   valid_col_top = collect(1:pomdp.nb_col)
 	valid_col_bot = collect(1:pomdp.nb_col)
+
+  #sensor failure
+  r = rand(rng)
+  if s.sensor_failed
+    if r < pomdp.p_fail_persist #so it doesnt persist
+        sensor_failed_ = !s.sensor_failed
+    else
+      sensor_failed_ = s.sensor_failed
+    end
+  else
+    if r < pomdp.p_fail_enter
+      sensor_failed_ = true
+    else
+      sensor_failed_ = false
+    end
+  end
 
   pos_enter = vcat([(1,y) for y in valid_col_bot],[(pomdp.col_length,y) for y in valid_col_top])
 
@@ -103,12 +121,21 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
       end
       vel_ = sample(vels,WeightVec(probs))
       #sample lanechange
-      lanechange = get_mobil_lane_change(pomdp.phys_param,car,neighborhood)
-      lane_change_other = setdiff([-1;0;1],[lanechange])
-      lanechange_probs = Dict{Int,Float64}()
-      lanechange_probs[lanechange] = length(lane_change_other) != 0?car.behavior.rationality:1.
-      for lanechange_ in lane_change_other
-        lanechange_probs[lanechange_] = (1.-car.behavior.rationality)/(length(lane_change_other))
+      #if in between lanes, continue lanechange with prob behavior.rationality, else go other direction
+      if mod(lane_,2) == 0 #in between lanes
+        r = rand(rng)
+        #if on the off chance its not changing lanes, make it, the jerk
+        if lane_change == 0
+          lane_change = rand(rng,-1:2:1)
+        end
+        lanechange = r < car.behavior.rationality ? lane_change : -1*lane_change
+      else
+        #sample normally
+        lanechange_ = get_mobil_lane_change(pomdp.phys_param,car,neighborhood)
+        lane_change_other = setdiff([-1;0;1],[lanechange_])
+        lanechange_other_probs = ((1-car.behavior.rationality)/length(lane_change_other))*ones(length(lane_change_other))
+        lanechange_probs = WeightVec([car.behavior.rationality;lanechange_other_probs])
+        lanechange = sample([lanechange_;lane_change_other],lanechange_probs)
       end
 
       push!(car_states,CarState((pos,lane_),vel_,lanechange,car.behavior))
@@ -140,7 +167,7 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
     end
   end
 
-  return MLState(agent_lane_,agent_vel_,car_states)
+  return MLState(agent_lane_,agent_vel_,sensor_failed_,car_states)
 
 end
 
@@ -148,7 +175,16 @@ function observe(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
   agent_pos = s.agent_pos
 	agent_vel = s.agent_vel
 	##environment positions fully observed
+
+  #sensor failure
 	car_obs = CarStateObs[]
+  if s.sensor_failed
+    if pomdp.complete_failure
+      return CompleteFailObs()
+    else
+      return PartialFailObs(agent_pos,agent_vel)
+    end
+  end
 
   Z = randn(rng,pomdp.nb_cars)
   for (i,car) in enumerate(s.env_cars)
@@ -178,7 +214,8 @@ function observe(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
     push!(car_obs,CarStateObs(car.pos,vel_,car.lane_change))
   end
 
-  return MLObs(agent_pos,agent_vel,car_obs)
+  #i'm going to be relying on the feature function to sort this out for me
+  return MLObs(agent_pos,agent_vel,s,car_obs)
 end
 
 function to_tilecode(s::MLObs)
