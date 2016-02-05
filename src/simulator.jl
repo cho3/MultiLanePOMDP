@@ -10,7 +10,7 @@ function rand!(rng::AbstractRNG,s::MLState,d::MLStateDistr)
     push!(states,state)
     push!(probs,prob)
   end
-  s = sample(states,WeightVec(probs))
+  s = sample(rng,states,WeightVec(probs))
   return s
 end
 
@@ -21,7 +21,7 @@ function rand!(rng::AbstractRNG,o::MLObs,d::MLObsDistr)
     push!(obss,obs)
     push!(probs,prob)
   end
-  o = sample(obss,WeightVec(probs))
+  o = sample(rng,obss,WeightVec(probs))
   return o
 end
 
@@ -119,7 +119,7 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
           push!(probs,1.-car.behavior.rationality)
 				end
       end
-      vel_ = sample(vels,WeightVec(probs))
+      vel_ = sample(rng,vels,WeightVec(probs))
       #sample lanechange
       #if in between lanes, continue lanechange with prob behavior.rationality, else go other direction
       if mod(lane_,2) == 0 #in between lanes
@@ -135,7 +135,7 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
         lane_change_other = setdiff([-1;0;1],[lanechange_])
         lanechange_other_probs = ((1-car.behavior.rationality)/length(lane_change_other))*ones(length(lane_change_other))
         lanechange_probs = WeightVec([car.behavior.rationality;lanechange_other_probs])
-        lanechange = sample([lanechange_;lane_change_other],lanechange_probs)
+        lanechange = sample(rng,[lanechange_;lane_change_other],lanechange_probs)
       end
 
       push!(car_states,CarState((pos,lane_),vel_,lanechange,car.behavior))
