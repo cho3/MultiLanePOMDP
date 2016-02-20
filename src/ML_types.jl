@@ -33,12 +33,14 @@ MLState(pos::Int,vel::Int,cars::Array{CarState,1}) = MLState(pos,vel,false,cars)
 Base.hash(a::MLState,h::UInt64=zero(UInt64)) = hash(a.agent_vel,hash(a.agent_pos,hash(a.env_cars,hash(a.sensor_failed,h))))
 
 
+
 type MLAction <:Action
 	vel::Int #-1,0 or +1, corresponding to desired velocities of v_fast,v_slow or v_nom
 	lane_change::Int #-1,0, or +1, corresponding to to the right lane, no lane change, or to the left lane
 end
 ==(a::MLAction,b::MLAction) = (a.vel==b.vel) && (a.lane_change==b.lane_change)
 Base.hash(a::MLAction,h::UInt64=zero(UInt64)) = hash(a.vel,hash(a.lane_change,h))
+create_action(p::POMDP) = MLAction(0,0)
 
 type CarStateObs
 	pos::Tuple{Int,Int}
@@ -90,6 +92,7 @@ type MLPOMDP <: POMDP
 	encounter_prob::Float64
 	p_fail_enter::Float64
 	p_fail_persist::Float64
+	accels::Array{Int,1}
 	complete_failure::Bool #do you have access to own position and velocity?
 	function MLPOMDP(;nb_lanes::Int=2,
 					nb_cars::Int=1,
@@ -106,6 +109,7 @@ type MLPOMDP <: POMDP
 					phys_param::PhysicalParam=PhysicalParam(nb_lanes),
 					p_fail_enter::Float64=0.05,
 					p_fail_persist::Float64=0.5,
+					accels::Array{Int,1}=[-3,-2,-1,0,1],
 					complete_failure::Bool=false)
 		assert((discount >= 0.) && (discount <= 1.))
 		assert((fuzz >= 0.) && (fuzz <= 1.))
@@ -126,11 +130,12 @@ type MLPOMDP <: POMDP
 		self.discount = discount
 		self.fuzz = fuzz
 		self.phys_param = phys_param
-		self.BEHAVIORS = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[phys_param.v_slow;phys_param.v_med;phys_param.v_fast],[phys_param.l_car])]
+		self.BEHAVIORS = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[phys_param.v_slow;phys_param.v_med;phys_param.v_fast],[phys_param.l_car]))]
 		self.NB_PHENOTYPES = length(self.BEHAVIORS)
 		self.p_fail_enter = p_fail_enter
 		self.p_fail_persist = p_fail_persist
 		self.complete_failure = complete_failure
+		self.accels = accels
 
 		return self
 	end
@@ -138,8 +143,10 @@ type MLPOMDP <: POMDP
 	#rewards
 end #100000.
 
+create_state(p::MLPOMDP) = MLState(0,0,false,CarState[CarState((0,1,),1,0,p.BEHAVIORS[1]) for _ = 1:p.nb_cars]) #oob
+
 n_states(p::MLPOMDP) = p.nb_col*p.phys_param.nb_vel_bins*(p.col_length*p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins*p.NB_PHENOTYPES+1)^p.nb_cars
-n_actions(::MLPOMDP) = 9
+n_actions(p::MLPOMDP) = p.NB_DIR*length(p.accels)
 n_observations(p::MLPOMDP) = p.nb_col*p.phys_param.nb_vel_bins*(p.col_length*p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins+1)^p.nb_cars
 
 type StateSpace <: AbstractSpace

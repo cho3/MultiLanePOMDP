@@ -23,6 +23,7 @@ import POMDPs: update, updater
 import Base.convert
 import Base.==
 import Base.hash
+import Base.rand
 
 import Iterators.product
 import Distributions: Normal, cdf

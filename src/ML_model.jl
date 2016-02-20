@@ -99,7 +99,7 @@ function states(pomdp::POMDP)
 	return S
 end
 
-actions(pomdp::MLPOMDP) = ActionSpace([MLAction(x[1],x[2]) for x in product([-1,0,1],[-1,0,1])])
+actions(pomdp::MLPOMDP) = ActionSpace([MLAction(x[1],x[2]) for x in product(p.accels,[-1,0,1])])
 actions(pomdp::MLPOMDP,s::MLState,A::ActionSpace=actions(pomdp)) = A #SARSOP does not support partially available actions
 
 function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
@@ -192,7 +192,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 	agent_lane_ = max(1,min(agent_lane_,pomdp.nb_col)) #can't leave the grid
 
 	v_interval = (pomdp.phys_param.v_fast-pomdp.phys_param.v_slow)/(pomdp.phys_param.nb_vel_bins-1)
-	agent_vel_ = s.agent_vel + a.vel*convert(Int,ceil(1.*dt/(v_interval)))
+	agent_vel_ = s.agent_vel + convert(Int,ceil(a.vel*dt/(v_interval)))
 	agent_vel_ = max(1,min(agent_vel_,pomdp.phys_param.nb_vel_bins))
 	##check if an encounter is happening/cant happen
 	#if no environment cars are around, an encounter will always happen?
@@ -219,8 +219,8 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			neighborhood = get_adj_cars(pomdp.phys_param,s.env_cars,i)
 
 			dvel_ms = get_idm_dv(behavior.p_idm,dt,VELOCITIES[vel],get(neighborhood.ahead_dv,0,0.),get(neighborhood.ahead_dist,0,1000.)) #call idm model
-			vel_inds = rev_1d_interp(VELOCITIES,vel+dvel_ms,behavior.rationality)
-			pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[s.agent_vel])+0.5*dt*dvel_ms #x+vt+1/2at2
+			vel_inds = rev_1d_interp(VELOCITIES,VELOCITIES[vel]+dvel_ms,behavior.rationality)
+			pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[s.agent_vel])#+0.5*dt*dvel_ms #x+vt+1/2at2
 			if (pos_m > POSITIONS[end]) || (pos_m < POSITIONS[1])
 				#if out of scene, move to out of scene state
 				next_state_probs = Dict{CarState,Float64}(CarState((0,1),1,0,pomdp.BEHAVIORS[1]) => 1.0)
@@ -273,16 +273,32 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			end
 			assert(abs(sum(values(vel_probs))-1.),0.0000001,<)
 			#placeholder
+			if mod(lane_,2) == 0
+				#force a lane change if in between lanes, equal prob either way
+				if lane_change == 0
+					lanechange_probs = Dict{Int,Float64}([-1=>0.5,1=>0.5])
+				else
+					lanechange_probs = Dict{Int,Float64}([lanechange=>behavior.rationality,-1*lanechange=>1-behavior.rationality])
 
-			lanechange = get_mobil_lane_change(pomdp.phys_param,env_car,neighborhood)
-			lane_change_other = setdiff([-1;0;1],[lanechange])
-			lanechange_probs = Dict{Int,Float64}()
-			lanechange_probs[lanechange] = length(lane_change_other) != 0?behavior.rationality:1.
-			for lanechange_ in lane_change_other
-				lanechange_probs[lanechange_] = (1.-behavior.rationality)/(length(lane_change_other))
+				end
+			else
+				lanechange = get_mobil_lane_change(pomdp.phys_param,env_car,neighborhood)
+				lane_change_other = setdiff([-1;0;1],[lanechange])
+				#safety criterion is hard
+        if (get(neighborhood.behind_dist,1,1000.) < 0.) || (get(neighborhood.ahead_dist,1,1000.) < 0.)
+          lane_change_other = setdiff(lane_change_other,[1])
+        end
+        if (get(neighborhood.behind_dist,-1,1000.) < 0.) || (get(neighborhood.ahead_dist,-1,1000.) < 0.)
+          lane_change_other = setdiff(lane_change_other,[-1])
+        end
+				lanechange_probs = Dict{Int,Float64}()
+				lanechange_probs[lanechange] = length(lane_change_other) != 0?behavior.rationality:1.
+				for lanechange_ in lane_change_other
+					lanechange_probs[lanechange_] = (1.-behavior.rationality)/(length(lane_change_other))
+				end
+				assert(abs(sum(values(lanechange_probs))-1.),0.0000001,<,"lanechange_probs")
+				assert(abs(sum(values(pos_probs))-1.),0.0000001,<,"pos_probs")
 			end
-			assert(abs(sum(values(lanechange_probs))-1.),0.0000001,<,"lanechange_probs")
-			assert(abs(sum(values(pos_probs))-1.),0.0000001,<,"pos_probs")
 			comp_probs = product(pos_probs,lane_probs,vel_probs,lanechange_probs)
 			#position, velocity, and lane changing are uncoupled
 			#next_state_probs = Dict{CarState,Float64}()
@@ -405,4 +421,4 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 end
 
 discount(pomdp::MLPOMDP) = pomdp.discount
-isterminal(pomdp::MLPOMDP,s::MLState,a::Action) = is_crash(pomdp,s,a) #placeholder
+isterminal(pomdp::MLPOMDP,s::MLState,a::MLAction=create_action(pomdp)) = is_crash(pomdp,s,a) #placeholder

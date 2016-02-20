@@ -28,13 +28,14 @@ immutable BehaviorModel
 	p_idm::IDMParam
 	p_mobil::MOBILParam
 	rationality::Float64
+	idx::Int
 end
 ==(a::BehaviorModel,b::BehaviorModel) = (a.p_idm==b.p_idm) && (a.p_mobil==b.p_mobil) &&(a.rationality == b.rationality)
 Base.hash(a::BehaviorModel,h::UInt64=zero(UInt64)) = hash(a.p_idm,hash(a.p_mobil,hash(a.rationality,h)))
 
-function BehaviorModel(s::AbstractString,v0::Float64,s0::Float64)
-	typedict = Dict{AbstractString,Float64}("cautious"=>0.95,"normal"=>0.9,"aggressive"=>0.85) #rationality
-	return BehaviorModel(IDMParam(s,v0,s0),MOBILParam(s),typedict[s])
+function BehaviorModel(s::AbstractString,v0::Float64,s0::Float64,idx::Int)
+	typedict = Dict{AbstractString,Float64}("cautious"=>0.999,"normal"=>0.99,"aggressive"=>0.95) #rationality
+	return BehaviorModel(IDMParam(s,v0,s0),MOBILParam(s),typedict[s],idx)
 end
 
 type CarState
