@@ -99,7 +99,7 @@ function states(pomdp::POMDP)
 	return S
 end
 
-actions(pomdp::MLPOMDP) = ActionSpace([MLAction(x[1],x[2]) for x in product(p.accels,[-1,0,1])])
+actions(pomdp::MLPOMDP) = ActionSpace([MLAction(x[1],x[2]) for x in product(pomdp.accels,[-1,0,1])])
 actions(pomdp::MLPOMDP,s::MLState,A::ActionSpace=actions(pomdp)) = A #SARSOP does not support partially available actions
 
 function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
@@ -219,6 +219,8 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 			neighborhood = get_adj_cars(pomdp.phys_param,s.env_cars,i)
 
 			dvel_ms = get_idm_dv(behavior.p_idm,dt,VELOCITIES[vel],get(neighborhood.ahead_dv,0,0.),get(neighborhood.ahead_dist,0,1000.)) #call idm model
+			#bound by the acceleration/braking terms in idm models
+      dvel_ms = min(max(dvel_ms,-env_car.behavior.p_idm.b),env_car.behavior.p_idm.a)
 			vel_inds = rev_1d_interp(VELOCITIES,VELOCITIES[vel]+dvel_ms,behavior.rationality)
 			pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[s.agent_vel])#+0.5*dt*dvel_ms #x+vt+1/2at2
 			if (pos_m > POSITIONS[end]) || (pos_m < POSITIONS[1])
@@ -278,7 +280,7 @@ function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create
 				if lane_change == 0
 					lanechange_probs = Dict{Int,Float64}([-1=>0.5,1=>0.5])
 				else
-					lanechange_probs = Dict{Int,Float64}([lanechange=>behavior.rationality,-1*lanechange=>1-behavior.rationality])
+					lanechange_probs = Dict{Int,Float64}([lane_change=>behavior.rationality,-1*lane_change=>1-behavior.rationality])
 
 				end
 			else

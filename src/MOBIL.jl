@@ -96,7 +96,7 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 		end
 		dlane = pos[2]-x.pos[2]
 		if abs(dlane) > 2 #not in or adjacent to current lane
-			break
+			continue
 		elseif abs(dlane) <= 1
 			dlane = 0
 		else #abs(dlane) == 2
@@ -107,7 +107,7 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 		dist = p.POSITIONS[pos[1]]-p.POSITIONS[x.pos[1]]
 		dv = p.VELOCITIES[x.vel]-p.VELOCITIES[vel]
 
-		if (dist > 0) && ((dist - p.l_car) < get(neighborhood.ahead_dist,dlane,1000.))
+		if (dist >= 0) && ((dist - p.l_car) < get(neighborhood.ahead_dist,dlane,1000.))
 			neighborhood.ahead_dist[dlane] = dist - p.l_car
 			neighborhood.ahead_dv[dlane] = dv
 			neighborhood.ahead_idm[dlane] = car.behavior.p_idm #pointless
@@ -132,7 +132,7 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::Ca
 	dt = p.dt
 	p_idm_self = state.behavior.p_idm
 	p_mobil = state.behavior.p_mobil
-
+	#println(neighborhood)
 	if isempty(neighborhood.ahead_dv) && isempty(neighborhood.behind_dv)
 		return 0 #no reason to change lanes if you're all alone
 	end
@@ -195,13 +195,38 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::Ca
 
 
 	#check safety criterion, also check if there is physically space
+	slf = get(neighborhood.behind_dist,1,1000.)
+	slb = get(neighborhood.ahead_dist,1,1000.)
+	dvlf = get(neighborhood.behind_dv,1,0.)
+	dvlb = get(neighborhood.ahead_dv,1,0.)
+	dslf = slf-dvlf*dt
+	dslb = slb-dvlb*dt
+
+	slf_ = get(neighborhood.behind_dist,-1,1000.)
+	slb_ = get(neighborhood.ahead_dist,-1,1000.)
+	dvlf_ = get(neighborhood.behind_dv,-1,0.)
+	dvlb_ = get(neighborhood.ahead_dv,-1,0.)
+	dslf_ = slf_-dvlf*dt
+	dslb_ = slb_-dvlb*dt
 	if (a_follower_right_ < -p_mobil.b_safe) && (a_follower_left_ < -p_mobil.b_safe)
 		return 0 #neither safe
-	elseif (a_follower_left_ < -p_mobil.b_safe) || (get(neighborhood.behind_dist,1,1000.) < 0.) || (get(neighborhood.ahead_dist,1,1000.) < 0.)
-		left_crit = -100.
-	elseif (a_follower_right_ < -p_mobil.b_safe) || (get(neighborhood.behind_dist,-1,1000.) < 0.) || (get(neighborhood.ahead_dist,-1,1000.) < 0.)
-		right_crit = -100.
 	end
+	if (a_follower_left_ < -p_mobil.b_safe) || (slf < 0.5*p.l_car) ||
+				(slb < 0.5*p.l_car) ||
+				abs(dslb) < 0.5*p.l_car ||
+				abs(dslf) < 0.5*p.l_car
+		left_crit -= 10000000.
+	end
+	if (a_follower_right_ < -p_mobil.b_safe) || (slf_ < 0.5*p.l_car) ||
+				(slb_ < 0.5*p.l_car) ||
+				abs(dslb_) < 0.5*p.l_car ||
+				abs(dslf_) < 0.5*p.l_car
+		right_crit -= 10000000.
+	end
+	#println(neighborhood)
+	#r = state.behavior.rationality
+	#v0 = p_idm_self.v0
+	#println("$(r) $(v0) left: $left_crit,$slf,$slb,$dslf,$dslb\n right: $right_crit,$slf_,$slb_,$dslf_,$dslb_")
 
 	#check if going left or right is preferable
 	dir_flag = left_crit >= right_crit ? 1:-1

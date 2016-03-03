@@ -117,6 +117,67 @@ end
 function test_idm_dv()
 	println("\t\tTesting IDM Calculations")
 	#TODO: calculate by hand...? or use existing examples if can be found
+	nb_lanes = 2
+	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=48.)
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[pp.v_slow;pp.v_med;pp.v_fast],[pp.l_car]))]
+	#CASE: it's faster, but there's no space--is this even a real case?
+	#CASE: it's faster and there is space
+	cs = CarState[CarState((1,3,),1,0,BehaviorModel("aggressive",35.,4.,1)),CarState((192,3,),1,0,BehaviorModel("cautious",27.,4.,1))]
+	nbhd = get_adj_cars(pp,cs,1)
+	v = pp.VELOCITIES[cs[1].vel]
+	dv = get(nbhd.ahead_dv,0,0.)
+	ds = get(nbhd.ahead_dist,0,1000.)
+	a = get_idm_dv(cs[1].behavior.p_idm,pp.dt,v,dv,ds)/pp.dt
+	println("Fast going slow behind slow: v=$v,dv=$dv,s=$ds,a=$a")
+	cs = CarState[CarState((1,3,),5,0,BehaviorModel("aggressive",35.,4.,1)),CarState((192,3,),1,0,BehaviorModel("cautious",27.,4.,1))]
+	nbhd = get_adj_cars(pp,cs,1)
+	v = pp.VELOCITIES[cs[1].vel]
+	dv = get(nbhd.ahead_dv,0,0.)
+	ds = get(nbhd.ahead_dist,0,1000.)
+	a = get_idm_dv(cs[1].behavior.p_idm,pp.dt,v,dv,ds)/pp.dt
+	println("Fast going fast behind slow: v=$v,dv=$dv,s=$ds,a=$a")
+	cs = CarState[CarState((1,3,),5,0,BehaviorModel("cautious",27.,4.,1)),CarState((192,3,),1,0,BehaviorModel("cautious",27.,4.,1))]
+	nbhd = get_adj_cars(pp,cs,1)
+	v = pp.VELOCITIES[cs[1].vel]
+	dv = get(nbhd.ahead_dv,0,0.)
+	ds = get(nbhd.ahead_dist,0,1000.)
+	a = get_idm_dv(cs[1].behavior.p_idm,pp.dt,v,dv,ds)/pp.dt
+	println("slow going fast behind slow: v=$v,dv=$dv,s=$ds,a=$a")
+	cs = CarState[CarState((1,3,),1,0,BehaviorModel("cautious",27.,4.,1)),CarState((192,3,),1,0,BehaviorModel("cautious",27.,4.,1))]
+	nbhd = get_adj_cars(pp,cs,1)
+	v = pp.VELOCITIES[cs[1].vel]
+	dv = get(nbhd.ahead_dv,0,0.)
+	ds = get(nbhd.ahead_dist,0,1000.)
+	a = get_idm_dv(cs[1].behavior.p_idm,pp.dt,v,dv,ds)/pp.dt
+	println("slow going slow behind slow: v=$v,dv=$dv,s=$ds,a=$a")
+	cs = CarState[CarState((1,3,),5,0,BehaviorModel("cautious",27.,4.,1))]
+	nbhd = get_adj_cars(pp,cs,1)
+	v = pp.VELOCITIES[cs[1].vel]
+	dv = get(nbhd.ahead_dv,0,0.)
+	ds = get(nbhd.ahead_dist,0,1000.)
+	a = get_idm_dv(cs[1].behavior.p_idm,pp.dt,v,dv,ds)/pp.dt
+	println("slow going fast: v=$v,dv=$dv,s=$ds,a=$a")
+	cs = CarState[CarState((1,3,),1,0,BehaviorModel("cautious",35.,4.,1))]
+	nbhd = get_adj_cars(pp,cs,1)
+	v = pp.VELOCITIES[cs[1].vel]
+	dv = get(nbhd.ahead_dv,0,0.)
+	ds = get(nbhd.ahead_dist,0,1000.)
+	a = get_idm_dv(cs[1].behavior.p_idm,pp.dt,v,dv,ds)/pp.dt
+	println("fast going slow: v=$v,dv=$dv,s=$ds,a=$a")
+	cs = CarState[CarState((1,3,),3,0,BehaviorModel("cautious",27.,4.,1))]
+	nbhd = get_adj_cars(pp,cs,1)
+	v = pp.VELOCITIES[cs[1].vel]
+	dv = get(nbhd.ahead_dv,0,0.)
+	ds = get(nbhd.ahead_dist,0,1000.)
+	a = get_idm_dv(cs[1].behavior.p_idm,pp.dt,v,dv,ds)/pp.dt
+	println("slow going med: v=$v,dv=$dv,s=$ds,a=$a")
+	cs = CarState[CarState((1,3,),3,0,BehaviorModel("cautious",35.,4.,1))]
+	nbhd = get_adj_cars(pp,cs,1)
+	v = pp.VELOCITIES[cs[1].vel]
+	dv = get(nbhd.ahead_dv,0,0.)
+	ds = get(nbhd.ahead_dist,0,1000.)
+	a = get_idm_dv(cs[1].behavior.p_idm,pp.dt,v,dv,ds)/pp.dt
+	println("fast going med: v=$v,dv=$dv,s=$ds,a=$a")
 end
 
 function test_idm()
@@ -180,7 +241,7 @@ function test_get_adj_cars()
 	##TODO: assertions
 	nb_lanes = 3
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=12.)
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[pp.v_slow;pp.v_med;pp.v_fast],[pp.l_car]))]
 	#CASE: just agent car
 	cs = CarState[CarState((24,3,),3,0,bs[1])]
 	dp1 = pp.POSITIONS[48]-pp.POSITIONS[24]-pp.l_car
@@ -246,31 +307,31 @@ function test_get_mobil_lane_change()
 	println("\t\tTesting get_mobil_lane_change")
 	nb_lanes = 2
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=12.)
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[pp.v_slow;pp.v_med;pp.v_fast],[pp.l_car]))]
 	#CASE: it's faster, but there's no space--is this even a real case?
 	#CASE: it's faster and there is space
-	cs = CarState[CarState((48,3,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((44,1,),1,0,BehaviorModel("cautious",27.,4.)),CarState((24,1,),3,0,BehaviorModel("aggressive",35.,4.))]
+	cs = CarState[CarState((48,3,),5,0,BehaviorModel("aggressive",35.,4.,1)),CarState((44,1,),1,0,BehaviorModel("cautious",27.,4.,1)),CarState((24,1,),3,0,BehaviorModel("aggressive",35.,4.,1))]
 	nbhd = get_adj_cars(pp,cs,3)
 	assert(get_mobil_lane_change(pp,cs[3],nbhd),1)
 	#CASE: it's slower and there is space
-	cs = CarState[CarState((48,3,),3,0,BehaviorModel("cautious",31.,4.)),CarState((44,1,),5,0,BehaviorModel("cautious",35.,4.)),CarState((24,1,),5,0,BehaviorModel("aggressive",35.,4.))]
+	cs = CarState[CarState((48,3,),3,0,BehaviorModel("cautious",31.,4.,1)),CarState((44,1,),5,0,BehaviorModel("cautious",35.,4.,1)),CarState((24,1,),5,0,BehaviorModel("aggressive",35.,4.,1))]
 	nbhd = get_adj_cars(pp,cs,3)
 	assert(get_mobil_lane_change(pp,cs[3],nbhd),0)
 	#CASE: someone is going fast behind me and i'm slow
-	cs = CarState[CarState((1,1,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((24,1,),1,0,BehaviorModel("cautious",27.,4.))]
+	cs = CarState[CarState((1,1,),5,0,BehaviorModel("aggressive",35.,4.,1)),CarState((24,1,),1,0,BehaviorModel("cautious",27.,4.,1))]
 	nbhd = get_adj_cars(pp,cs,2)
 	assert(get_mobil_lane_change(pp,cs[2],nbhd),1)
 	###repeat for other side
 	#CASE: it's faster and there is space
-	cs = CarState[CarState((48,1,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((44,3,),1,0,BehaviorModel("cautious",27.,4.)),CarState((24,3,),3,0,BehaviorModel("aggressive",35.,4.))]
+	cs = CarState[CarState((48,1,),5,0,BehaviorModel("aggressive",35.,4.,1)),CarState((44,3,),1,0,BehaviorModel("cautious",27.,4.,1)),CarState((24,3,),3,0,BehaviorModel("aggressive",35.,4.,1))]
 	nbhd = get_adj_cars(pp,cs,3)
 	assert(get_mobil_lane_change(pp,cs[3],nbhd),-1)
 	#CASE: it's slower and there is space
-	cs = CarState[CarState((48,1,),3,0,BehaviorModel("cautious",31.,4.)),CarState((44,3,),5,0,BehaviorModel("cautious",35.,4.)),CarState((24,3,),5,0,BehaviorModel("aggressive",35.,4.))]
+	cs = CarState[CarState((48,1,),3,0,BehaviorModel("cautious",31.,4.,1)),CarState((44,3,),5,0,BehaviorModel("cautious",35.,4.,1)),CarState((24,3,),5,0,BehaviorModel("aggressive",35.,4.,1))]
 	nbhd = get_adj_cars(pp,cs,3)
 	assert(get_mobil_lane_change(pp,cs[3],nbhd),0)
 	#CASE: someone is going fast behind me and i'm slow
-	cs = CarState[CarState((1,3,),5,0,BehaviorModel("aggressive",35.,4.)),CarState((24,3,),1,0,BehaviorModel("cautious",27.,4.))]
+	cs = CarState[CarState((1,3,),5,0,BehaviorModel("aggressive",35.,4.,1)),CarState((24,3,),1,0,BehaviorModel("cautious",27.,4.,1))]
 	nbhd = get_adj_cars(pp,cs,2)
 	assert(get_mobil_lane_change(pp,cs[2],nbhd),-1)
 end
@@ -300,16 +361,16 @@ import Iterators.product
 include(joinpath("..","src","ML_types.jl"))
 function test_behavior_model_creation()
 	println("\t\tTesting BehaviorModel creation")
-	ps = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	ps = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[27.,31.,35.],[4.]))]
 end
 
 function test_behavior_model_equality()
-	ps = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	ps = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[27.,31.,35.],[4.]))]
 	test_equality("BehaviorModel",ps)
 end
 
 function test_behavior_model_hashing()
-	ps = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	ps = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[27.,31.,35.],[4.]))]
 	test_hashing("BehaviorModel",ps)
 end
 
@@ -320,7 +381,7 @@ end
 
 function test_carstate_equality()
 	#println("\t\tTesting CarState equality")
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[27.,31.,35.],[4.]))]
 	ps = CarState[]
 	push!(ps,CarState((1,1),3,0,bs[1]))
 	push!(ps,CarState((1,1),3,0,bs[2]))
@@ -335,7 +396,7 @@ end
 
 function test_carstate_hashing()
 	#println("\t\tTesting CarState hashing")
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[27.,31.,35.],[4.]))]
 	ps = CarState[]
 	push!(ps,CarState((1,1),3,0,bs[1]))
 	push!(ps,CarState((1,1),3,0,bs[2]))
@@ -383,7 +444,7 @@ end
 
 function test_MLState_equality()
 	#println("\t\tTesting MLState equality")
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[27.,31.,35.],[4.]))]
 	cs = CarState[]
 	push!(cs,CarState((1,1),3,0,bs[1]))
 	push!(cs,CarState((1,1),3,0,bs[2]))
@@ -403,7 +464,7 @@ end
 
 function test_MLState_hashing()
 	#println("\t\tTesting MLState hashing")
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[27.,31.,35.],[4.]))]
 	cs = CarState[]
 	push!(cs,CarState((1,1),3,0,bs[1]))
 	push!(cs,CarState((1,1),3,0,bs[2]))
@@ -560,22 +621,22 @@ function test_reward()
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=12.) #2.=>col_length=8
 	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
 
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[pp.v_slow;pp.v_med;pp.v_fast],[pp.l_car]))]
 
 	#Env Car out of bounds
 	cs_oob = CarState((0,1),1,0,bs[1])
 	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
-	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.))
+	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.,1))
 	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
-	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.))
+	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.,1))
 	#env car going at a medium speed in the right lane heading left
-	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.,1))
 	#env car going at a medium speed in the left lane heading right
-	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
+	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.,1))
 	#env car is just chilling in the right/btwn/lhigh lane
-	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
-	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.))
-	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.,1))
+	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.,1))
+	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.,1))
 
 	#CASE: do nothing = no costs
 	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,0)) == 0.)
@@ -585,9 +646,9 @@ function test_reward()
 	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,1)) == p.lanechange_cost)
 	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(1,1)) == p.accel_cost + p.lanechange_cost)
 	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,1)) == p.decel_cost + p.lanechange_cost)
-	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(1,-1)) == p.accel_cost + p.lanechange_cost)
-	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,-1)) == p.decel_cost + p.lanechange_cost)
-	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,-1)) == p.lanechange_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(1,-1)), p.accel_cost + p.lanechange_cost  + p.invalid_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(-1,-1)) == p.decel_cost + p.lanechange_cost+p.invalid_cost)
+	assert(reward(p,MLState(1,1,CarState[cs_oob]),MLAction(0,-1)) == p.lanechange_cost + p.invalid_cost)
 
 	#Case: cars occupy same space
 	assert(reward(p,MLState(1,2,CarState[cs_rchill]),MLAction(0,0)) == p.r_crash)
@@ -607,7 +668,7 @@ function test_actions()
 	println("\t\tTesting Action Space Creation")
 	p = MLPOMDP()
 	A = actions(p)
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[27.,31.,35.],[4.]))]
 	s = MLState(2,5,CarState[CarState((1,1),3,0,bs[1])])
 	A_ = actions(p,s) #check the other signature
 	assert(domain(A_) == domain(A))
@@ -636,22 +697,22 @@ function test_transition()
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=12.) #2.=>col_length=8
 	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
 
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[pp.v_slow;pp.v_med;pp.v_fast],[pp.l_car]))]
 
 	#Env Car out of bounds
 	cs_oob = CarState((0,1),1,0,bs[1])
 	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
-	cs_l_slow = CarState((3,1),1,0,BehaviorModel("aggressive",27.,4.))
+	cs_l_slow = CarState((3,1),1,0,BehaviorModel("aggressive",27.,4.,1))
 	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
-	cs_r_fast = CarState((48,1),5,0,BehaviorModel("aggressive",35.,4.))
+	cs_r_fast = CarState((48,1),5,0,BehaviorModel("aggressive",35.,4.,1))
 	#env car going at a medium speed in the right lane heading left
-	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.,1))
 	#env car going at a medium speed in the left lane heading right
-	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
+	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.,1))
 	#env car is just chilling in the right/btwn/lhigh lane
-	cs_rchill = CarState((24,1),3,1,BehaviorModel("normal",31.,4.))
-	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.))
-	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_rchill = CarState((24,1),3,1,BehaviorModel("normal",31.,4.,1))
+	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.,1))
+	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.,1))
 
 	#CASE: test that env car goes out of bounds at top boundary
 	s = MLState(3,1,CarState[cs_r_fast])
@@ -699,7 +760,7 @@ function test_transition()
 	d = transition(p,s,a)
 	s_ = collect(keys(d.d))[1]
 	assert(s_.agent_pos,2)
-	assert(s_.agent_vel,2)
+	assert(s_.agent_vel,3) #2
 	#speeding up at fastest speed
 	s = MLState(2,5,CarState[cs_l_slow])
 	a = MLAction(1,0)
@@ -779,22 +840,22 @@ function test_observe()
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=5,lane_length=12.) #2.=>col_length=8
 	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
 
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[pp.v_slow;pp.v_med;pp.v_fast],[pp.l_car]))]
 
 	#Env Car out of bounds
 	cs_oob = CarState((0,1),1,0,bs[1])
 	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
-	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.))
+	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.,1))
 	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
-	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.))
+	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.,1))
 	#env car going at a medium speed in the right lane heading left
-	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.,1))
 	#env car going at a medium speed in the left lane heading right
-	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
+	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.,1))
 	#env car is just chilling in the right/btwn/lhigh lane
-	cs_rchill = CarState((24,1),3,1,BehaviorModel("normal",31.,4.))
-	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.))
-	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_rchill = CarState((24,1),3,1,BehaviorModel("normal",31.,4.,1))
+	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.,1))
+	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.,1))
 
 	#CASE: no cars
 	s = MLState(1,1,CarState[cs_oob])
@@ -898,24 +959,36 @@ function test_is_crash()
 	pp = PhysicalParam(nb_lanes,nb_vel_bins=4,lane_length=12.) #2.=>col_length=8
 	p = MLPOMDP(nb_cars=1,nb_lanes=nb_lanes,phys_param=pp)
 
-	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3]) for x in product(["cautious","normal","aggressive"],[27.;31.;35.],[4.])]
+	bs = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[pp.v_slow;pp.v_med;pp.v_fast],[pp.l_car]))]
 
 	#Env Car out of bounds
 	cs_oob = CarState((0,1),1,0,bs[1])
 	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
-	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.))
+	cs_r_slow = CarState((40,1),1,0,BehaviorModel("aggressive",27.,4.,1))
 	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
-	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.))
+	cs_r_fast = CarState((7,1),4,0,BehaviorModel("aggressive",35.,4.,1))
 	#env car going at a medium speed in the right lane heading left
-	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_lchange = CarState((24,1),2,1,BehaviorModel("normal",31.,4.,1))
 	#env car going at a medium speed in the left lane heading right
-	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.))
+	cs_rchange = CarState((24,2),2,-1,BehaviorModel("normal",31.,4.,1))
 	#env car is just chilling in the right/btwn/lhigh lane
-	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.))
-	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.))
-	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.))
+	cs_rchill = CarState((24,1),2,1,BehaviorModel("normal",31.,4.,1))
+	cs_mchill = CarState((24,2),2,1,BehaviorModel("normal",31.,4.,1))
+	cs_hchill = CarState((28,1),2,1,BehaviorModel("normal",31.,4.,1))
 
 	##TODO: change these tests borrowed from test_reward to something more meaningful
+	#env car going slow in right lane: (41,1) corresponds to right in front of agent car area + 0.25m or 0.5m
+	_cs_l_slow = CarState((3,1),1,0,BehaviorModel("aggressive",27.,4.,1))
+	#env car going fast in right lane: (7,1) corresponds to right behind the agent car area + 0.25m or 0.5m
+	_cs_r_fast = CarState((48,1),4,0,BehaviorModel("aggressive",35.,4.,1))
+	s = MLState(1,1,CarState[_cs_r_fast])
+	a = MLAction(0,-1)
+	#going out of top boundary
+	assert(!is_crash(p,s,a))
+	#going out of bottom boundary
+	s = MLState(1,4,CarState[_cs_l_slow])
+	a = MLAction(0,1)
+	assert(!is_crash(p,s,a))
 	#CASE: do nothing = no costs
 	assert(!is_crash(p,MLState(1,1,CarState[cs_oob]),MLAction(0,0)))
 	#CASE: moving = cost

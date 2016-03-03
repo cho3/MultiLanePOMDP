@@ -115,9 +115,12 @@ function draw_sedan(pomdp::MLPOMDP,s::CarState,v_nom::Float64)
 	#draw_ face?
 end
 
-function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction)
+function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction;debug::Bool=false,fixed_frame::Bool=false)
 	#Placeholder!
 	clf()
+	if debug
+		subplot(211)
+	end
 	#make the initial canvas
 	W = pomdp.phys_param.lane_length
 	H = pomdp.phys_param.w_lane*(pomdp.nb_col+1)/2
@@ -175,8 +178,10 @@ function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	end
 
 	#if is_crash, add crash graphic
-	if is_crash(pomdp,s,a)
+	if is_crash(pomdp,s,a,debug)
+		#subplot(211)
 		draw_bang(x_ctr,y_ctr)
 	end
 	axis("equal")
+	return gcf()
 end

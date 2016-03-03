@@ -117,5 +117,6 @@ end
 function get_idm_dv(p::IDMParam,dt::Float64,v::Float64,dv::Float64,s::Float64)
 	s_ = p.s0 + max(0.,v*p.T+v*dv/(2*sqrt(p.a*p.b)))
 	dvdt = p.a*(1.-(v/p.v0)^p.del - (s_/s)^2)
+	#dvdt = min(max(dvdt,-p.b),p.a)
 	return dvdt*dt
 end #get_idm_dv

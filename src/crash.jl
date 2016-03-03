@@ -67,7 +67,9 @@ function poly_intersect(X::Array{Array{Float64,2},1},Y::Array{Array{Float64,2},1
 			if size(x)[2] > 2
 				error("Error: ill formed input2")
 			end
-			if line_segment_intersect(x[:,1],x[:,2],y[:,1],y[:,2])
+			# This is correct: input has format: [x x'; y y']
+			#  so each slice is [x;y] and [x';y'] respectively
+			if line_segment_intersect(x[:,1],x[:,2],y[:,1],y[:,2]) # XXX this doesnt seem right
 				return true
 			end
 		end
@@ -110,7 +112,7 @@ function poly_intersect(X::Array{Array{Float64,2},1},Y::Array{Array{Float64,2},1
 	return false
 end
 
-function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction)
+function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction,debug::Bool=false)
 	#calculate current position, next position, convert to metric space
 	#convert to polyhedron based on car size
 	#do collision check between agent car and all environment cars
@@ -128,15 +130,25 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction)
 	l_car = pomdp.phys_param.l_car
 	#TODO: make it so that X takes in to account the fact that the agent car can change lanes
 	w_car_ = w_car
+	diff = 0.75
 	if a.lane_change < 0
 		agent_y -= pomdp.phys_param.y_interval
-		w_car_ += pomdp.phys_param.y_interval
+		w_car_ += pomdp.phys_param.y_interval*diff
 	elseif a.lane_change > 0
-		w_car_ += pomdp.phys_param.y_interval
+		w_car_ += pomdp.phys_param.y_interval*(1.+(1-diff))
+		agent_y += pomdp.phys_param.y_interval*(1-diff)
+
 	end
 	#X = Array{Float64,2}[agent_pos agent_pos+l_car agent_pos+l_car agent_pos agent_pos; agent_y agent_y agent_y+w_car agent_y+w_car agent_y]
 	X = Array{Float64,2}[[agent_pos agent_pos; agent_y agent_y+w_car_],[agent_pos+l_car agent_pos+l_car; agent_y agent_y+w_car_],
 						[agent_pos agent_pos+l_car; agent_y agent_y],[agent_pos agent_pos+l_car; agent_y+w_car_ agent_y+w_car_]]
+
+	if debug
+		subplot(212)
+		for x in X
+			plot(vec(x[1,:]),vec(x[2,:]),color="k")
+		end
+	end
 
 	dt = pomdp.phys_param.dt
 	for (i,env_car) in enumerate(s.env_cars)
@@ -153,8 +165,9 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction)
 		dv = get(neighborhood.ahead_dv,0,0.)
 		ds = get(neighborhood.ahead_dist,0,1000.)
 		dvel_ms = get_idm_dv(behavior.p_idm,dt,pomdp.phys_param.VELOCITIES[vel],dv,ds) #call idm model
-		dp =  dt*(pomdp.phys_param.VELOCITIES[vel]-pomdp.phys_param.VELOCITIES[s.agent_vel])+0.5*dt*dvel_ms #x+vt+1/2at2
-		dy = (lane_-pos[2])*pomdp.phys_param.y_interval
+		dp =  dt*(pomdp.phys_param.VELOCITIES[vel]-pomdp.phys_param.VELOCITIES[s.agent_vel])#+0.5*dt*dvel_ms #x+vt+1/2at2 #XXX remove at2 term
+		dy = (lane_-pos[2])*pomdp.phys_param.y_interval # XXX this doesn't seem right
+		#dy = lane_change*pomdp.phys_param.y_interval
 		p = pomdp.phys_param.POSITIONS[pos[1]]
 		y = pos[2]*pomdp.phys_param.y_interval
 		##TODO: make consistent with new formulation
@@ -163,6 +176,11 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction)
 		Y3 = Array{Float64,2}[[p p+dp; y y+dy],[p+l_car p+dp+l_car; y y+dy],[p p+dp; y+w_car y+dy+w_car],[p+l_car p+dp+l_car; y+w_car y+dy+w_car]]
 
 		Y = Array{Float64,2}[Y1;Y2;Y3]
+		if debug
+			for Yi in Y
+				plot(vec(Yi[1,:]),vec(Yi[2,:]),color="b")
+			end
+		end
 		if poly_intersect(X,Y)
 			return true
 		end

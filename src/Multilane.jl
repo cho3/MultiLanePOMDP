@@ -6,7 +6,8 @@
 #	and is grounded in reality with physical values and uses the IDM and MOBIL model for env cars
 
 using POMDPs
-using POMDPToolbox
+using MCTS
+#using POMDPToolbox
 using PyPlot
 using Interact #will give warning for deprecated types (julia v0.4)
 
@@ -19,12 +20,15 @@ import POMDPs: rand!, pdf # common distribution functions
 import POMDPs: domain # space functions
 import POMDPs: create_transition_distribution, create_observation_distribution, create_belief, initial_belief
 import POMDPs: update, updater
+import POMDPs: iterator, rand
 
+import Base: convert, ==, hash, rand, assert
+#= XXX
 import Base.convert
 import Base.==
 import Base.hash
 import Base.rand
-
+XXX =#
 import Iterators.product
 import Distributions: Normal, cdf
 import StatsBase: WeightVec, sample
@@ -39,12 +43,28 @@ function assert(expr,val,fn::Function= ==,varname::AbstractString="")
 	end
 end
 
+#NOTE: from StatsBase
+function sample(rng::AbstractRNG,wv::WeightVec)
+    t = rand(rng) * sum(wv)
+    w = values(wv)
+    n = length(w)
+    i = 1
+    cw = w[1]
+    while cw < t && i < n
+        i += 1
+        @inbounds cw += w[i]
+    end
+    return i
+end
+
+sample(rng::AbstractRNG,a::AbstractArray, wv::WeightVec) = a[sample(rng,wv)]
+
 include("IDM.jl")
 include("MOBIL.jl")
 include("encounter.jl")
 include("observation.jl")
-include("crash.jl")
 include("ML_types.jl")
+include("crash.jl")
 include("ML_model.jl")
 include("visualization.jl")
 include("simulator.jl")
@@ -54,6 +74,7 @@ include("simulator.jl")
 #################
 ##Velocity Bins##
 #################
+#=
 """
 This is derived from where a cautious car will accelerate from the slowest speed (27 m/s) to the highest speed
 (35 m/s, with a true desired speed of 36, but lower just for sanity), and this is the velocity it has at each
@@ -72,10 +93,11 @@ Assuming 150 Hp = 111855 Watts of power available, 1500 kg car,
 then at 35 m/s, the acceleration it can get is 2.13 m/s2 => 1.598 m/s delta v over dt = 0.75 seconds
 --so it's probably not unreasonable to have a own-velocity that's coarser than the IDM based environment cars
 """
-
+=#
 #################
 ##Position Bins##
 #################
+#=
 """
 Let's say the minimum relative speed to have appreciable change in relative position is dv = 1.385/4, or
 a quarter of human walking speed. This means that at the finest grain of difference in relative velocity
@@ -83,3 +105,4 @@ that is permissible to allow a relative position change, corresponds to approxim
 
 So for about 5 car lengths of state space, we have about 80 points in the x direction.
 """
+=#

@@ -25,10 +25,11 @@ function rand!(rng::AbstractRNG,o::MLObs,d::MLObsDistr)
   return o
 end
 
-function rand(rng::AbstractRNG,action_space::AbstractSpace)
+function rand(rng::AbstractRNG,action_space::ActionSpace,::Union{MLState,MLAction})
   r = rand(1:length(action_space))
   return domain(action_space)[r]
 end
+
 
 function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
   dt = pomdp.phys_param.dt
@@ -44,8 +45,8 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
   agent_vel_ = max(1,min(agent_vel_,pomdp.phys_param.nb_vel_bins))
 
   car_states = CarState[]
-  valid_col_top = collect(1:pomdp.nb_col)
-	valid_col_bot = collect(1:pomdp.nb_col)
+  valid_col_top = collect(1:2:pomdp.nb_col)
+	valid_col_bot = collect(1:2:pomdp.nb_col)
 
   #sensor failure
   r = rand(rng)
@@ -75,6 +76,8 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
       neighborhood = get_adj_cars(pomdp.phys_param,s.env_cars,i)
 
       dvel_ms = get_idm_dv(car.behavior.p_idm,dt,VELOCITIES[vel],get(neighborhood.ahead_dv,0,0.),get(neighborhood.ahead_dist,0,1000.)) #call idm model
+      #bound by the acceleration/braking terms in idm models
+      dvel_ms = min(max(dvel_ms/dt,-car.behavior.p_idm.b/dt),car.behavior.p_idm.a/dt)*dt
       vel_inds = rev_1d_interp(VELOCITIES,VELOCITIES[vel]+dvel_ms,car.behavior.rationality)
       pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[s.agent_vel])#+0.5*dt*dvel_ms #x+vt+1/2at2
       if (pos_m > POSITIONS[end]) || (pos_m < POSITIONS[1])
@@ -127,6 +130,7 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
       vel_ = sample(rng,vels,WeightVec(probs))
       #sample lanechange
       #if in between lanes, continue lanechange with prob behavior.rationality, else go other direction
+      #TODO add safety check here
       if mod(lane_,2) == 0 #in between lanes
         r = rand(rng)
         #if on the off chance its not changing lanes, make it, the jerk
@@ -134,15 +138,48 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
           lane_change = rand(rng,-1:2:1)
         end
         lanechange = r < car.behavior.rationality ? lane_change : -1*lane_change
+
+        slf = get(neighborhood.behind_dist,lanechange,1000.)
+        slb = get(neighborhood.ahead_dist,lanechange,1000.)
+        dvlf = get(neighborhood.behind_dv,lanechange,0.)
+        dvlb = get(neighborhood.ahead_dv,lanechange,0.)
+        dslf = slf-dvlf*dt
+        dslb = slb-dvlb*dt
+
+        if (slf < 0.5*pomdp.phys_param.l_car) ||
+              (slb < 0.5*pomdp.phys_param.l_car) ||
+              abs(dslb) < 0.5*pomdp.phys_param.l_car ||
+              abs(dslf) < 0.5*pomdp.phys_param.l_car
+          lanechange *= -1
+        end
+
       else
         #sample normally
         lanechange_ = get_mobil_lane_change(pomdp.phys_param,car,neighborhood)
         lane_change_other = setdiff([-1;0;1],[lanechange_])
         #safety criterion is hard
-        if (get(neighborhood.behind_dist,1,1000.) < 0.) || (get(neighborhood.ahead_dist,1,1000.) < 0.)
+        slf = get(neighborhood.behind_dist,1,1000.)
+        slb = get(neighborhood.ahead_dist,1,1000.)
+        dvlf = get(neighborhood.behind_dv,1,0.)
+        dvlb = get(neighborhood.ahead_dv,1,0.)
+        dslf = slf-dvlf*dt
+        dslb = slb-dvlb*dt
+        if (slf < 0.5*pomdp.phys_param.l_car) ||
+              (slb < 0.5*pomdp.phys_param.l_car) ||
+              abs(dslb) < 0.5*pomdp.phys_param.l_car ||
+              abs(dslf) < 0.5*pomdp.phys_param.l_car
           lane_change_other = setdiff(lane_change_other,[1])
         end
-        if (get(neighborhood.behind_dist,-1,1000.) < 0.) || (get(neighborhood.ahead_dist,-1,1000.) < 0.)
+        slf = get(neighborhood.behind_dist,-1,1000.)
+        slb = get(neighborhood.ahead_dist,-1,1000.)
+        dvlf = get(neighborhood.behind_dv,-1,0.)
+        dvlb = get(neighborhood.ahead_dv,-1,0.)
+        dslf = slf-dvlf*dt
+        dslb = slb-dvlb*dt
+        if (slf < 0.5*pomdp.phys_param.l_car) ||
+              (slb < 0.5*pomdp.phys_param.l_car) ||
+              abs(dslb) < 0.5*pomdp.phys_param.l_car ||
+              abs(dslf) < 0.5*pomdp.phys_param.l_car
           lane_change_other = setdiff(lane_change_other,[-1])
         end
         lanechange_other_probs = ((1-car.behavior.rationality)/length(lane_change_other))*ones(length(lane_change_other))
@@ -151,7 +188,7 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
       end
 
       #if near top, remove from valid_col_top
-      if p.phys_param.lane_length - POSITIONS[pos] <= p.phys_param.l_car*1.5
+      if pomdp.phys_param.lane_length - POSITIONS[pos] <= pomdp.phys_param.l_car*1.5
         remove_set = [lane_;lane_+1;lane_-1]
         for idx in remove_set
           idy = findfirst(valid_col_top,idx)
@@ -160,7 +197,7 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
           end
         end
       #elseif near bot, remove from valid_col_bot
-      elseif POSITIONS[pos] < 1.5*p.phys_param.l_car
+      elseif POSITIONS[pos] < 1.5*pomdp.phys_param.l_car
         remove_set = [lane_;lane_+1;lane_-1]
         for idx in remove_set
           idy = findfirst(valid_col_bot,idx)
@@ -345,11 +382,11 @@ function simulate(pomdp::MLPOMDP,policy::Function;
     return R,state_hist,action_hist
 end
 
-function display_sim(pomdp::MLPOMDP,S::Array{MLState,1},A::Array{MLAction,1})
+function display_sim(pomdp::MLPOMDP,S::Array{MLState,1},A::Array{MLAction,1};debug::Bool=false)
   warn("This should be run in a Jupyter Notebook")
   assert(length(S) == length(A))
   f = figure()
   @manipulate for i = 1:length(S); withfig(f) do
-    visualize(pomdp,S[i],A[i]) end
+    visualize(pomdp,S[i],A[i],debug=debug) end
   end
 end

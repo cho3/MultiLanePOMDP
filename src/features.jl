@@ -122,6 +122,54 @@ function generate_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
 
 end
 
+function generate_partial_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
+                                              nb_x_bins::Int=20,nb_vel_bins::Int=20)
+  nb_y_bins = p.nb_col
+  nb_lanechange_bins = p.phys_param.NB_DIR
+
+  #second term for own car
+  nb_feat = (nb_y_bins + nb_lanechange_bins + nb_x_bins + nb_vel_bins)*(p.nb_cars)
+  nb_feat += nb_y_bins + nb_vel_bins
+  #nb_feat += 9 #nb_actions
+  function feature_function(s::Union{MLState,MLObs})
+    active_indices = zeros(Int,4*p.nb_cars + 2)
+    active_indices[1] = bin(s.agent_pos,p.col_length,nb_y_bins)
+    feat_offset = nb_y_bins
+    active_indices[2] = feat_offset + bin(s.agent_vel,p.phys_param.nb_vel_bins,nb_vel_bins)
+    feat_offset += nb_vel_bins
+    offset = 2
+    oob_set = Int[]
+    for (i,car) in enumerate(s.env_cars)
+      if car.pos[1] <= 0
+        feat_offset += nb_x_bins+nb_y_bins+nb_vel_bins+nb_lanechange_bins
+        offset += 4
+        append!(oob_set,collect(offset+1:offset+4))
+        continue
+      end
+      active_indices[offset + 1] = feat_offset + bin(car.pos[1],p.col_length,nb_x_bins)
+      feat_offset += nb_x_bins
+      active_indices[offset + 2] = feat_offset + bin(car.pos[2],p.nb_col,nb_y_bins)
+      feat_offset += nb_y_bins
+      active_indices[offset + 3] = feat_offset + bin(car.vel,p.phys_param.nb_vel_bins,nb_vel_bins)
+      feat_offset += nb_vel_bins
+      active_indices[offset + 4] = feat_offset + bin(car.lane_change,p.phys_param.NB_DIR,nb_lanechange_bins)
+      feat_offset += nb_lanechange_bins
+      offset += 4#4
+    end
+    #remove elements from oob set--should be zero
+    active_indices = [i for i in filter(x->x>0,active_indices)]
+
+    assert(!(0 in active_indices))
+    return sparsevec(active_indices,ones(length(active_indices)),nb_feat)
+  end
+
+  return feature_function
+  #return generate_state_actionexplicit_featurefunction(feature_function,nb_feat,A)
+
+end
+
+
+
 type AvoidPolicy <: Policy
   p::MLPOMDP
   jerk::Bool
