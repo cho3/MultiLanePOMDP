@@ -77,8 +77,9 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
 
       dvel_ms = get_idm_dv(car.behavior.p_idm,dt,VELOCITIES[vel],get(neighborhood.ahead_dv,0,0.),get(neighborhood.ahead_dist,0,1000.)) #call idm model
       #bound by the acceleration/braking terms in idm models
-      dvel_ms = min(max(dvel_ms/dt,-car.behavior.p_idm.b/dt),car.behavior.p_idm.a/dt)*dt
-      vel_inds = rev_1d_interp(VELOCITIES,VELOCITIES[vel]+dvel_ms,car.behavior.rationality)
+      #NOTE restricting available velocities
+      dvel_ms = min(max(dvel_ms/dt,-car.behavior.p_idm.b),car.behavior.p_idm.a)*dt
+      vel_inds = rev_1d_interp(VELOCITIES[3:end-2],VELOCITIES[vel]+dvel_ms,car.behavior.rationality)
       pos_m = POSITIONS[pos[1]] + dt*(VELOCITIES[vel]-VELOCITIES[s.agent_vel])#+0.5*dt*dvel_ms #x+vt+1/2at2
       if (pos_m > POSITIONS[end]) || (pos_m < POSITIONS[1])
         push!(car_states,CarState((0,1),1,0,BEHAVIORS[1]))
@@ -270,6 +271,26 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
 
 end
 
+
+function bin(arr::AbstractArray,val::Union{Float64,Int})
+  rng = searchsorted(arr,val)
+
+  ###NOTE: the following might not actually be correct
+  #set it to whatever is closer
+  start = min(rng.start,length(arr))
+  stop = max(rng.stop,1)
+  if start <= stop
+    idx = start
+  else
+    dstart = abs(val - arr[start])
+    dstop = abs(val - arr[stop])
+    idx = dstart < dstop ? start: stop
+  end
+
+  return idx
+end
+
+
 function observe(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
   agent_pos = s.agent_pos
 	agent_vel = s.agent_vel
@@ -285,7 +306,10 @@ function observe(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
     end
   end
 
-  Z = randn(rng,pomdp.nb_cars)
+  x_ctr = pomdp.phys_param.lane_length/2.
+  y_ctr = s.agent_pos*pomdp.phys_param.y_interval
+
+  Z = randn(rng,pomdp.nb_cars,3)
   for (i,car) in enumerate(s.env_cars)
     if car.pos[1] == 0
       #nothing to observe
@@ -293,28 +317,31 @@ function observe(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
       continue
     end
 
+    #TODO: adjust noise level based on distance (longitudinal) from ego-car
+    dist = norm([pomdp.phys_param.POSITIONS[car.pos[1]]-x_ctr;
+                  car.pos[2]*pomdp.phys_param.y_interval-y_ctr])
+    #VELOCITY NOISE
     v = pomdp.phys_param.VELOCITIES[car.vel]
-    v_ = v + Z[i]*pomdp.o_vel_sig
+    v_ = v + Z[i,1]*pomdp.o_vel_sig*dist
 
-    vel_rng = searchsorted(pomdp.phys_param.VELOCITIES,v_)
+    vel_ = bin(pomdp.phys_param.VELOCITIES,v_)
+    #LONGITUDINAL NOISE
+    p = pomdp.phys_param.POSITIONS[car.pos[1]]
+    p_ = p + Z[i,2]*pomdp.o_pos_sig*dist
 
-    ###NOTE: the following might not actually be correct
-    #set it to whatever is closer
-    start = min(vel_rng.start,length(pomdp.phys_param.VELOCITIES))
-    stop = max(vel_rng.stop,1)
-    if start <= stop
-      vel_ = start
-    else
-      dstart = abs(v_ - pomdp.phys_param.VELOCITIES[start])
-      dstop = abs(v_ - pomdp.phys_param.VELOCITIES[stop])
-      vel_ = dstart < dstop ? start: stop
-    end
+    pos_ = bin(pomdp.phys_param.POSITIONS,p_)
 
-    push!(car_obs,CarStateObs(car.pos,vel_,car.lane_change))
+    #LANE NOISE
+    lane = car.pos[2]
+    l_ = lane + Z[i,3]*pomdp.o_lane_sig*dist/pomdp.phys_param.y_interval
+
+    lane_ = bin(collect(1:pomdp.nb_col),l_)
+
+    push!(car_obs,CarStateObs((pos_,lane_),vel_,car.lane_change))
   end
 
   #i'm going to be relying on the feature function to sort this out for me
-  return MLObs(agent_pos,agent_vel,s,car_obs)
+  return MLObs(agent_pos,agent_vel,s.sensor_failed,car_obs)
 end
 
 function to_tilecode(s::MLObs)
@@ -390,3 +417,14 @@ function display_sim(pomdp::MLPOMDP,S::Array{MLState,1},A::Array{MLAction,1};deb
     visualize(pomdp,S[i],A[i],debug=debug) end
   end
 end
+
+
+#to make partial observability generator work in MCTS
+type MLStateObs
+  o::MLObservation
+  s::MLState
+end
+==(a::MLStateObs,b::MLStateObs) = a.o==b.o
+hash(a::MLStateObs,h::UInt64=zero(UInt64)) = hash(a.o,h)
+
+isterminal(pomdp::MLPOMDP,s::MLStateObs,a::MLAction=create_action(pomdp)) = isterminal(pomdp,s.s,a)

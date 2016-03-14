@@ -89,6 +89,8 @@ type MLPOMDP <: POMDP
 	BEHAVIORS::Array{BehaviorModel,1}
 	NB_PHENOTYPES::Int
 	o_vel_sig::Float64
+	o_pos_sig::Float64
+	o_lane_sig::Float64
 	encounter_prob::Float64
 	p_fail_enter::Float64
 	p_fail_persist::Float64
@@ -104,7 +106,9 @@ type MLPOMDP <: POMDP
 					lineride_cost::Float64 = -1.,
 					lanechange_cost::Float64=-2.,
 					fuzz::Float64=0.1,
-					o_vel_sig::Float64=2.,
+					o_vel_sig::Float64=0.05, #meter of noise/meter of distance (should be <1)
+					o_pos_sig::Float64=0.05, #saw ~0.05 RMSE at all distances in some paper
+					o_lane_sig::Float64=0.05,
 					encounter_prob::Float64=0.5,
 					phys_param::PhysicalParam=PhysicalParam(nb_lanes),
 					p_fail_enter::Float64=0.05,
@@ -119,6 +123,8 @@ type MLPOMDP <: POMDP
 		self.col_length = length(phys_param.POSITIONS)
 		self.nb_cars = nb_cars
 		self.o_vel_sig = o_vel_sig
+		self.o_pos_sig = o_pos_sig
+		self.o_lane_sig = o_lane_sig
 		self.encounter_prob = encounter_prob
 		#behaviors...
 		self.r_crash = r_crash

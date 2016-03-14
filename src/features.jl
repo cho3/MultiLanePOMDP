@@ -177,12 +177,12 @@ type AvoidPolicy <: Policy
 end
 AvoidPolicy(p::MLPOMDP;jerk::Bool=false) = AvoidPolicy(p,jerk,0)
 
-function get_closest_car(pomdp::MLPOMDP,s::MLState,lookahead_only::Bool=false)
+function get_closest_car(pomdp::MLPOMDP,s::Union{MLState,MLObs},lookahead_only::Bool=false)
   v = s.agent_vel
   x = (length(pomdp.phys_param.POSITIONS) + 1)/2 #row
   p = s.agent_pos #col
   d = Inf
-  closest_car = CarState[] #this is so we can exploit length() == 0 insead of defining null
+  closest_car = Union{CarState,CarStateObs}[] #this is so we can exploit length() == 0 insead of defining null
   for car in s.env_cars
     if lookahead_only
       if x-car.pos[1] > 0
@@ -203,7 +203,7 @@ function get_closest_car(pomdp::MLPOMDP,s::MLState,lookahead_only::Bool=false)
 end
 
 
-function ReinforcementLearning.action(p::AvoidPolicy,s::MLState)
+function ReinforcementLearning.action(p::AvoidPolicy,s::Union{MLState,MLObs})
   cs = get_closest_car(p.p,s,p.jerk)
   if length(cs) <= 0
     #return empty action

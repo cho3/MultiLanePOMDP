@@ -16,6 +16,7 @@ MOBILParam(;p::Float64=0.25,b_safe::Float64=4.,a_thr::Float64=0.2) = MOBILParam(
 Base.hash(a::MOBILParam,h::UInt64=zero(UInt64)) = hash(a.p,hash(a.b_safe,hash(a.a_thr,h)))
 
 function MOBILParam(s::AbstractString)
+	#typical politeness range: [0.0,0.5]
 	typedict = Dict{AbstractString,Float64}("cautious"=>0.5,"normal"=>0.25,"aggressive"=>0.0)
 	p = get(typedict,s,-1.)
 	assert(p >= 0.)
