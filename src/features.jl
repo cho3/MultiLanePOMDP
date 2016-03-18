@@ -34,6 +34,7 @@ function bin(i::Int,rng::Int,nb_bins::Int)
   return 1 + bin #julia is 0 indexed
 end
 
+
 function generate_state_actionexplicit_featurefunction{T}(ff::Function,A::Array{T,1},nb_feat::Int)
   #ff returns a set of active indices,
   A_indices = Dict{T,Int}([a=>i for (i,a) in enumerate(A)])
@@ -84,9 +85,9 @@ function generate_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
   #nb_feat += 9 #nb_actions
   function feature_function(s::Union{MLState,MLObs})
     active_indices = zeros(Int,5*p.nb_cars + 2)
-    active_indices[1] = bin(s.agent_pos,p.col_length,nb_y_bins)
+    active_indices[1] = bin(s.agent_pos,1,p.nb_col,nb_y_bins)
     feat_offset = nb_y_bins
-    active_indices[2] = feat_offset + bin(s.agent_vel,p.phys_param.nb_vel_bins,nb_vel_bins)
+    active_indices[2] = feat_offset + bin(s.agent_vel,p.phys_param.v_slow,p.phys_param.v_fast,nb_vel_bins)
     feat_offset += nb_vel_bins
     offset = 2
     oob_set = Int[]
@@ -97,13 +98,13 @@ function generate_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
         append!(oob_set,collect(offset+1:offset+5))
         continue
       end
-      active_indices[offset + 1] = feat_offset + bin(car.pos[1],p.col_length,nb_x_bins)
+      active_indices[offset + 1] = feat_offset + bin(car.pos[1],0,p.phys_param.lane_length,nb_x_bins)
       feat_offset += nb_x_bins
-      active_indices[offset + 2] = feat_offset + bin(car.pos[2],p.nb_col,nb_y_bins)
+      active_indices[offset + 2] = feat_offset + bin(car.pos[2],1,p.nb_col,nb_y_bins)
       feat_offset += nb_y_bins
-      active_indices[offset + 3] = feat_offset + bin(car.vel,p.phys_param.nb_vel_bins,nb_vel_bins)
+      active_indices[offset + 3] = feat_offset + bin(car.vel,p.phys_param.v_slow-1.,p.phys_param.v_fast+1.,nb_vel_bins)
       feat_offset += nb_vel_bins
-      active_indices[offset + 4] = feat_offset + bin(car.lane_change,p.phys_param.NB_DIR,nb_lanechange_bins)
+      active_indices[offset + 4] = feat_offset + bin(car.lane_change,-1,1,nb_lanechange_bins)
       feat_offset += nb_lanechange_bins
       ##Adding explicit behaviormodel bit
       active_indices[offset + 5] = feat_offset + car.behavior.idx#find(car.behavior .== p.BEHAVIORS)[1] #potentially brittle
@@ -133,9 +134,9 @@ function generate_partial_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
   #nb_feat += 9 #nb_actions
   function feature_function(s::Union{MLState,MLObs})
     active_indices = zeros(Int,4*p.nb_cars + 2)
-    active_indices[1] = bin(s.agent_pos,p.col_length,nb_y_bins)
+    active_indices[1] = bin(s.agent_pos,1,p.nb_col,nb_y_bins)
     feat_offset = nb_y_bins
-    active_indices[2] = feat_offset + bin(s.agent_vel,p.phys_param.nb_vel_bins,nb_vel_bins)
+    active_indices[2] = feat_offset + bin(s.agent_vel,p.phys_param.v_slow,p.phys_param.v_fast,nb_vel_bins)
     feat_offset += nb_vel_bins
     offset = 2
     oob_set = Int[]
@@ -146,13 +147,13 @@ function generate_partial_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
         append!(oob_set,collect(offset+1:offset+4))
         continue
       end
-      active_indices[offset + 1] = feat_offset + bin(car.pos[1],p.col_length,nb_x_bins)
+      active_indices[offset + 1] = feat_offset + bin(car.pos[1],0,p.phys_param.lane_length,nb_x_bins)
       feat_offset += nb_x_bins
-      active_indices[offset + 2] = feat_offset + bin(car.pos[2],p.nb_col,nb_y_bins)
+      active_indices[offset + 2] = feat_offset + bin(car.pos[2],1,p.nb_col,nb_y_bins)
       feat_offset += nb_y_bins
-      active_indices[offset + 3] = feat_offset + bin(car.vel,p.phys_param.nb_vel_bins,nb_vel_bins)
+      active_indices[offset + 3] = feat_offset + bin(car.vel,p.phys_param.v_slow-1.,p.phys_param.v_fast+1.,nb_vel_bins)
       feat_offset += nb_vel_bins
-      active_indices[offset + 4] = feat_offset + bin(car.lane_change,p.phys_param.NB_DIR,nb_lanechange_bins)
+      active_indices[offset + 4] = feat_offset + bin(car.lane_change,-1,1,nb_lanechange_bins)
       feat_offset += nb_lanechange_bins
       offset += 4#4
     end
@@ -179,7 +180,7 @@ AvoidPolicy(p::MLPOMDP;jerk::Bool=false) = AvoidPolicy(p,jerk,0)
 
 function get_closest_car(pomdp::MLPOMDP,s::Union{MLState,MLObs},lookahead_only::Bool=false)
   v = s.agent_vel
-  x = (length(pomdp.phys_param.POSITIONS) + 1)/2 #row
+  x = pomdp.phys_param.lane_length/2. #row
   p = s.agent_pos #col
   d = Inf
   closest_car = Union{CarState,CarStateObs}[] #this is so we can exploit length() == 0 insead of defining null
@@ -210,7 +211,7 @@ function ReinforcementLearning.action(p::AvoidPolicy,s::Union{MLState,MLObs})
     return MLAction(0,0)
   end
   cs = cs[1]
-  x = (length(p.p.phys_param.POSITIONS) + 1)/2 #row
+  x = p.p.phys_param.lane_length/2.#(length(p.p.phys_param.POSITIONS) + 1)/2 #row
   #accelerate opposite of the sign of him - me
   if p.jerk
     accel = 1

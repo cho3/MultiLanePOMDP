@@ -76,7 +76,7 @@ function draw_direction(pomdp::MLPOMDP,x::Float64,y::Float64,v_nom::Float64,s::C
 	#arrow should be at most one car in length, and ~1.2 of a car width at headway
 	#NOTE: the arrow head is extra length
 	max_arrow_length = 1.125*pomdp.phys_param.l_car
-	phantom_arrow_length = max_arrow_length*(pomdp.phys_param.VELOCITIES[s.vel]-v_nom)/(pomdp.phys_param.v_fast-pomdp.phys_param.v_slow)
+	phantom_arrow_length = max_arrow_length*(s.vel-v_nom)/(pomdp.phys_param.v_fast-pomdp.phys_param.v_slow)
 	phantom_arrow_head_width = 1.2*pomdp.phys_param.w_car
 	phantom_arrow_body_width  = 0.8*pomdp.phys_param.w_car
 	phantom_arrow_head_length = phantom_arrow_length/3.
@@ -87,7 +87,7 @@ function draw_direction(pomdp::MLPOMDP,x::Float64,y::Float64,v_nom::Float64,s::C
 	#draw actual speed/direction; this is where the center of the car will be in
 	#the next time step, approximately
 
-	dx = pomdp.phys_param.dt*(pomdp.phys_param.VELOCITIES[s.vel]-v_nom)
+	dx = pomdp.phys_param.dt*(s.vel-v_nom)#(pomdp.phys_param.VELOCITIES[s.vel]-v_nom)
 	dy = s.lane_change*pomdp.phys_param.y_interval
 	hw = 0.5*pomdp.phys_param.w_car
 	hl = 1.5*hw
@@ -101,16 +101,17 @@ function draw_direction(pomdp::MLPOMDP,x::Float64,y::Float64,v_nom::Float64,s::C
 end
 
 function draw_sedan(pomdp::MLPOMDP,s::CarState,v_nom::Float64)
-	if s.pos[1] == 0
+	if s.pos[1] < 0.
 		#oob
 		return
 	end
-	x_ctr = pomdp.phys_param.POSITIONS[s.pos[1]]
+	x_ctr = s.pos[1]#pomdp.phys_param.POSITIONS[s.pos[1]]
 	y_ctr = pomdp.phys_param.y_interval*s.pos[2]
 	##TODO: something to do with behavior and color
 	color = get(BEHAVIOR_COLORS,s.behavior.p_mobil.p,"#B404AE") #PLACEHOLDER
 	draw_direction(pomdp,x_ctr,y_ctr,v_nom,s)
 	draw_sedan(pomdp,x_ctr,y_ctr,color)
+	annotate("$(round(s.vel,2))",xy=(x_ctr,y_ctr))
 	#draw_direction?
 	#draw_ face?
 end
@@ -165,13 +166,14 @@ function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction;debug::Bool=false,fixed
 	dy = dy != 0. ? dy - sign(dy)*hl: dy
 	arrow(x_ctr,y_ctr,dx,dy,width=w,head_width=hw,head_length=hl,fc="#DF7401", ec="#0404B4",alpha=0.75)
 	####END TODO
+	annotate("$(round(s.agent_vel,2))",xy=(x_ctr,y_ctr))
 	if s.sensor_failed && pomdp.complete_failure
 		annotate("???",xy=(x_ctr,y_ctr),size=480)
 	elseif s.sensor_failed
 		annotate("?",xy=(x_ctr,y_ctr),size=240)
 	end
 
-	v_nom = pomdp.phys_param.VELOCITIES[s.agent_vel]
+	v_nom = s.agent_vel#pomdp.phys_param.VELOCITIES[s.agent_vel]
 	#draw environment cars
 	for car in s.env_cars
 		draw_sedan(pomdp,car,v_nom)

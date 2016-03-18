@@ -25,7 +25,7 @@ end
 
 
 ##No better place to put this :(
-immutable BehaviorModel
+type BehaviorModel
 	p_idm::IDMParam
 	p_mobil::MOBILParam
 	rationality::Float64
@@ -40,11 +40,11 @@ function BehaviorModel(s::AbstractString,v0::Float64,s0::Float64,idx::Int)
 end
 
 type CarState
-	pos::Tuple{Int,Int} #row, col
-	vel::Int
+	pos::Tuple{Float64,Int} #row, col/ (x,y)
+	vel::Float64
 	lane_change::Int #-1,0, or +1, corresponding to to the right lane, no lane change, or to the left lane
 	behavior::BehaviorModel
-	function CarState(pos::Tuple{Int,Int},vel::Int,lane_change::Int,behavior::BehaviorModel)
+	function CarState(pos::Tuple{Float64,Int},vel::Float64,lane_change::Int,behavior::BehaviorModel)
 		self = new()
 		self.pos = pos
 		self.vel = vel
@@ -68,6 +68,18 @@ end
 CarNeighborhood(x,y) = CarNeighborhood(x,deepcopy(x),deepcopy(x),deepcopy(x),y,deepcopy(y))
 CarNeighborhood() = CarNeighborhood(Dict{Int,Float64}(),Dict{Int,IDMParam}())
 
+function is_lanechange_dangerous(nbhd::CarNeighborhood,dt::Float64,l_car::Float64,dir::Int)
+	slf = get(nbhd.behind_dist,dir,1000.)
+	slb = get(nbhd.ahead_dist,dir,1000.)
+	dvlf = get(nbhd.behind_dv,dir,0.)
+	dvlb = get(nbhd.ahead_dv,dir,0.)
+	dslf = slf-dvlf*dt
+	dslb = slb-dvlb*dt
+
+	return (slf < 0.5*l_car) || (slb < 0.5*l_car) || abs(dslb) < 0.5*l_car ||
+				abs(dslf) < 0.5*l_car
+
+end
 
 function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 	##TODO: update CarNeighborhood with stuff for the IDM parameters
@@ -105,8 +117,8 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 		end
 		#if abs(dlane) == 1 or 0, consider to be in same lane; 2 next lane, more, ignore
 
-		dist = p.POSITIONS[pos[1]]-p.POSITIONS[x.pos[1]]
-		dv = p.VELOCITIES[x.vel]-p.VELOCITIES[vel]
+		dist = pos[1]-x.pos[1]#p.POSITIONS[pos[1]]-p.POSITIONS[x.pos[1]]
+		dv = x.vel-vel#p.VELOCITIES[x.vel]-p.VELOCITIES[vel]
 
 		if (dist >= 0) && ((dist - p.l_car) < get(neighborhood.ahead_dist,dlane,1000.))
 			neighborhood.ahead_dist[dlane] = dist - p.l_car
@@ -143,7 +155,7 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::Ca
 		return state.lane_change #continue going in the direction you're going
 	end
 
-	v = p.VELOCITIES[state.vel]
+	v = state.vel#p.VELOCITIES[state.vel]
 	#get_idm_dv(param,velocity,dv,s)
 	#get predicted and potential accelerations
 	a_self = get_idm_dv(p_idm_self,dt,v,get(neighborhood.ahead_dv,0,0.),get(neighborhood.ahead_dist,0,1000.))/dt
@@ -196,34 +208,17 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::Ca
 
 
 	#check safety criterion, also check if there is physically space
-	slf = get(neighborhood.behind_dist,1,1000.)
-	slb = get(neighborhood.ahead_dist,1,1000.)
-	dvlf = get(neighborhood.behind_dv,1,0.)
-	dvlb = get(neighborhood.ahead_dv,1,0.)
-	dslf = slf-dvlf*dt
-	dslb = slb-dvlb*dt
-
-	slf_ = get(neighborhood.behind_dist,-1,1000.)
-	slb_ = get(neighborhood.ahead_dist,-1,1000.)
-	dvlf_ = get(neighborhood.behind_dv,-1,0.)
-	dvlb_ = get(neighborhood.ahead_dv,-1,0.)
-	dslf_ = slf_-dvlf*dt
-	dslb_ = slb_-dvlb*dt
 	if (a_follower_right_ < -p_mobil.b_safe) && (a_follower_left_ < -p_mobil.b_safe)
 		return 0 #neither safe
 	end
-	if (a_follower_left_ < -p_mobil.b_safe) || (slf < 0.5*p.l_car) ||
-				(slb < 0.5*p.l_car) ||
-				abs(dslb) < 0.5*p.l_car ||
-				abs(dslf) < 0.5*p.l_car
+	if is_lanechange_dangerous(neighborhood,dt,p.l_car,1) || (a_follower_left_ < -p_mobil.b_safe)
 		left_crit -= 10000000.
 	end
-	if (a_follower_right_ < -p_mobil.b_safe) || (slf_ < 0.5*p.l_car) ||
-				(slb_ < 0.5*p.l_car) ||
-				abs(dslb_) < 0.5*p.l_car ||
-				abs(dslf_) < 0.5*p.l_car
-		right_crit -= 10000000.
+
+	if is_lanechange_dangerous(neighborhood,dt,p.l_car,-1) || (a_follower_right_ < -p_mobil.b_safe)
+		left_crit -= 10000000.
 	end
+
 	#println(neighborhood)
 	#r = state.behavior.rationality
 	#v0 = p_idm_self.v0

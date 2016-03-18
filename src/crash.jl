@@ -116,13 +116,15 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction,debug::Bool=false)
 	#calculate current position, next position, convert to metric space
 	#convert to polyhedron based on car size
 	#do collision check between agent car and all environment cars
-
+	#=
 	agent_pos_ind = (1+pomdp.col_length)/2
 	if round(agent_pos_ind) != agent_pos_ind
 		agent_pos = (pomdp.phys_param.POSITIONS[convert(Int,round(ceil(agent_pos_ind)))]+pomdp.phys_param.POSITIONS[convert(Int,round(floor(agent_pos_ind)))])/2
 	else
 		agent_pos = pomdp.phys_param.POSITIONS[convert(Int,round(agent_pos_ind))]
 	end
+	=#
+	agent_pos = pomdp.phys_param.lane_length/2.
 	agent_y = s.agent_pos*pomdp.phys_param.y_interval
 
 	#treat agent_pos, agent_y as (0,0)
@@ -153,7 +155,7 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction,debug::Bool=false)
 	dt = pomdp.phys_param.dt
 	for (i,env_car) in enumerate(s.env_cars)
 		pos = env_car.pos
-		if pos[1] == 0
+		if pos[1] < 0.
 			continue
 		end
 		vel = env_car.vel
@@ -164,11 +166,11 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction,debug::Bool=false)
 
 		dv = get(neighborhood.ahead_dv,0,0.)
 		ds = get(neighborhood.ahead_dist,0,1000.)
-		dvel_ms = get_idm_dv(behavior.p_idm,dt,pomdp.phys_param.VELOCITIES[vel],dv,ds) #call idm model
-		dp =  dt*(pomdp.phys_param.VELOCITIES[vel]-pomdp.phys_param.VELOCITIES[s.agent_vel])#+0.5*dt*dvel_ms #x+vt+1/2at2 #XXX remove at2 term
+		dvel_ms = get_idm_dv(behavior.p_idm,dt,vel,dv,ds) #call idm model
+		dp =  dt*(vel-s.agent_vel)#dt*(pomdp.phys_param.VELOCITIES[vel]-pomdp.phys_param.VELOCITIES[s.agent_vel])#+0.5*dt*dvel_ms #x+vt+1/2at2 #XXX remove at2 term
 		dy = (lane_-pos[2])*pomdp.phys_param.y_interval # XXX this doesn't seem right
 		#dy = lane_change*pomdp.phys_param.y_interval
-		p = pomdp.phys_param.POSITIONS[pos[1]]
+		p = pos[1]#pomdp.phys_param.POSITIONS[pos[1]]
 		y = pos[2]*pomdp.phys_param.y_interval
 		##TODO: make consistent with new formulation
 		Y1 = Array{Float64,2}[[p p; y y+w_car],[p+l_car p+l_car; y y+w_car],[p p+l_car; y y],[p p+l_car; y+w_car y+w_car]]

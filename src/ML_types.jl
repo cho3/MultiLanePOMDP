@@ -24,11 +24,11 @@
 
 type MLState <: State
 	agent_pos::Int #row
-	agent_vel::Int
+	agent_vel::Float64
 	sensor_failed::Bool
 	env_cars::Array{CarState,1}
 end #MLState
-MLState(pos::Int,vel::Int,cars::Array{CarState,1}) = MLState(pos,vel,false,cars)
+MLState(pos::Int,vel::Float64,cars::Array{CarState,1}) = MLState(pos,vel,false,cars)
 ==(a::MLState,b::MLState) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars) && (a.sensor_failed == b.sensor_failed)
 Base.hash(a::MLState,h::UInt64=zero(UInt64)) = hash(a.agent_vel,hash(a.agent_pos,hash(a.env_cars,hash(a.sensor_failed,h))))
 
@@ -43,8 +43,8 @@ Base.hash(a::MLAction,h::UInt64=zero(UInt64)) = hash(a.vel,hash(a.lane_change,h)
 create_action(p::POMDP) = MLAction(0,0)
 
 type CarStateObs
-	pos::Tuple{Int,Int}
-	vel::Int #index of
+	pos::Tuple{Float64,Int}
+	vel::Float64 #index of
 	lane_change::Int #-1,0, or +1, corresponding to to the right lane, no lane change, or to the left lane
 end
 ==(a::CarStateObs,b::CarStateObs) = (a.pos==b.pos) && (a.vel==b.vel) &&(a.lane_change == b.lane_change)
@@ -53,7 +53,7 @@ Base.hash(a::CarStateObs,h::UInt64=zero(UInt64)) = hash(a.pos,hash(a.vel,hash(a.
 ##Observe: Car positions, self position, speed, noisy realization of other car's speed (gaussian?)
 type MLObs <: Observation
 	agent_pos::Int #col
-	agent_vel::Int #index in velocity vector?
+	agent_vel::Float64 #index in velocity vector?
 	sensor_failed::Bool
 	env_cars::Array{CarStateObs,1}
 end
@@ -91,6 +91,7 @@ type MLPOMDP <: POMDP
 	o_vel_sig::Float64
 	o_pos_sig::Float64
 	o_lane_sig::Float64
+	o_lanechange_sig::Float64
 	encounter_prob::Float64
 	p_fail_enter::Float64
 	p_fail_persist::Float64
@@ -109,6 +110,7 @@ type MLPOMDP <: POMDP
 					o_vel_sig::Float64=0.05, #meter of noise/meter of distance (should be <1)
 					o_pos_sig::Float64=0.05, #saw ~0.05 RMSE at all distances in some paper
 					o_lane_sig::Float64=0.05,
+					o_lanechange_sig::Float64=0.025, #sign is more robust?
 					encounter_prob::Float64=0.5,
 					phys_param::PhysicalParam=PhysicalParam(nb_lanes),
 					p_fail_enter::Float64=0.05,
@@ -125,6 +127,7 @@ type MLPOMDP <: POMDP
 		self.o_vel_sig = o_vel_sig
 		self.o_pos_sig = o_pos_sig
 		self.o_lane_sig = o_lane_sig
+		self.o_lanechange_sig = o_lanechange_sig
 		self.encounter_prob = encounter_prob
 		#behaviors...
 		self.r_crash = r_crash
@@ -136,7 +139,7 @@ type MLPOMDP <: POMDP
 		self.discount = discount
 		self.fuzz = fuzz
 		self.phys_param = phys_param
-		self.BEHAVIORS = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[phys_param.v_slow;phys_param.v_med;phys_param.v_fast],[phys_param.l_car]))]
+		self.BEHAVIORS = BehaviorModel[BehaviorModel(x[1],x[2],x[3],idx) for (idx,x) in enumerate(product(["cautious","normal","aggressive"],[phys_param.v_slow+0.5;phys_param.v_med;phys_param.v_fast],[phys_param.l_car]))]
 		self.NB_PHENOTYPES = length(self.BEHAVIORS)
 		self.p_fail_enter = p_fail_enter
 		self.p_fail_persist = p_fail_persist
