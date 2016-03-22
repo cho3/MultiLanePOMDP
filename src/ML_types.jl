@@ -152,7 +152,7 @@ type MLPOMDP <: POMDP
 	#rewards
 end #100000.
 
-create_state(p::MLPOMDP) = MLState(0,0,false,CarState[CarState((0,1,),1,0,p.BEHAVIORS[1]) for _ = 1:p.nb_cars]) #oob
+create_state(p::MLPOMDP) = MLState(1,pomdp.phys_param.v_med,false,CarState[CarState((-1.,1,),1.,0,p.BEHAVIORS[1]) for _ = 1:p.nb_cars]) #oob
 
 n_states(p::MLPOMDP) = p.nb_col*p.phys_param.nb_vel_bins*(p.col_length*p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins*p.NB_PHENOTYPES+1)^p.nb_cars
 n_actions(p::MLPOMDP) = p.phys_param.NB_DIR*length(p.accels)

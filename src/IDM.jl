@@ -42,10 +42,11 @@ type PhysicalParam
 							v_max::Float64=v_fast+0.,
 							v_min::Float64=v_slow-0.)
 
-		assert(v_max >= v_fast)
+		#assert(v_max >= v_fast)
 		assert(v_fast >= v_med)
 		assert(v_med >= v_slow)
-		assert(v_slow >= v_min)
+		#assert(v_slow >= v_min)
+		assert(v_fast > v_slow)
 		self = new()
 		self.dt = dt
 		self.w_car = w_car

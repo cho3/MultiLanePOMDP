@@ -124,6 +124,15 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction,debug::Bool=false)
 		agent_pos = pomdp.phys_param.POSITIONS[convert(Int,round(agent_pos_ind))]
 	end
 	=#
+	#going offroad is considered grashing
+	#=
+	if a.lane_change > 0 && s.agent_pos >= pomdp.nb_col
+		return true
+	elseif a.lane_change < 0 && s.agent_pos <= 1
+		return true
+	end
+	=#
+
 	agent_pos = pomdp.phys_param.lane_length/2.
 	agent_y = s.agent_pos*pomdp.phys_param.y_interval
 

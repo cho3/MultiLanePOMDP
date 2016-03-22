@@ -102,40 +102,12 @@ end
 actions(pomdp::MLPOMDP) = ActionSpace([MLAction(x[1],x[2]) for x in product(pomdp.accels,[-1,0,1])])
 actions(pomdp::MLPOMDP,s::MLState,A::ActionSpace=actions(pomdp)) = A #SARSOP does not support partially available actions
 
-function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
-	#assume environment cars don't crash with one another?
+function __reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
+
 	pos = s.agent_pos
 	vel = a.vel
 	lane_change = a.lane_change
-	if is_crash(pomdp,s,a)
-		return pomdp.r_crash
-	end
-	"""
-	agent_pos_ind = (1+pomdp.col_length)/2
-	if round(agent_pos_ind) != agent_pos_ind
-		agent_pos = (POSITIONS[convert(Int,round(ceil(agent_pos_ind)))]+POSITIONS[convert(Int,round(floor(agent_pos_ind)))])/2
-	else
-		agent_pos = POSITIONS[convert(Int,round(agent_pos_ind))]
-	end
 
-	for env_car in s.env_cars
-		p = env_car.pos
-		v = env_car.vel
-		l = env_car.lane_change
-		#TODO: TRAJECTORIY INTERSECTION
-		crash_flag = false
-		if abs(p[1]-agent_pos) < l_car
-			crash_flag = true
-		elseif abs(pos-p[2]) (times) y_interval < w_car
-			crash_flag = true
-		end
-		#check crash conditions
-		if crash_flag
-			return pomdp.r_crash
-		end
-	end
-	"""
-	#penalty for accelerating/decelerating/lane change
 	cost = 0.
 	if a.vel > 0
 		cost += pomdp.accel_cost*a.vel
@@ -157,7 +129,23 @@ function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
 
 	return cost #
 end
-reward(pomdp::MLPOMDP,s::MLState,a::MLAction,sp::MLState) = reward(pomdp,sp,a)
+
+function reward(pomdp::MLPOMDP,s::MLState,a::MLAction)
+	#assume environment cars don't crash with one another?
+	if is_crash(pomdp,s,a)
+		return pomdp.r_crash
+	end
+	#penalty for accelerating/decelerating/lane change
+
+	return __reward(pomdp,s,a) #
+end
+
+function reward(pomdp::MLPOMDP,s::MLState,a::MLAction,sp::MLState)
+	if is_crash(pomdp,s,a) || isterminal(pomdp,sp)
+		return pomdp.r_crash
+	end
+	return __reward(pomdp,s,a)
+end
 
 type MLStateDistr <: AbstractDistribution
 	d::Dict{MLState,Float64} #e.g. sparse vector

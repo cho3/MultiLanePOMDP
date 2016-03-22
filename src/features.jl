@@ -35,6 +35,26 @@ function bin(i::Int,rng::Int,nb_bins::Int)
 end
 
 
+function ordered_cars(p::MLPOMDP,s::MLState)
+
+  x = p.phys_param.lane_length/2.
+  y = s.agent_pos*p.phys_param.y_interval
+  dist = Inf*ones(length(s.env_cars))
+
+  for (i,car) in enumerate(s.env_cars)
+    x_ = car.pos[1]
+    if x_ < 0.
+      continue
+    end
+    y_ = car.pos[2]*p.phys_param.y_interval
+    dist[i] = norm([x_-x;y_-y])
+  end
+
+  inds = sortperm(dist)
+  return [(i,s.env_cars[ind]) for(i,ind) in enumerate(inds)]
+  #[(i,car) for ...]
+end
+
 function generate_state_actionexplicit_featurefunction{T}(ff::Function,A::Array{T,1},nb_feat::Int)
   #ff returns a set of active indices,
   A_indices = Dict{T,Int}([a=>i for (i,a) in enumerate(A)])
@@ -91,7 +111,7 @@ function generate_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
     feat_offset += nb_vel_bins
     offset = 2
     oob_set = Int[]
-    for (i,car) in enumerate(s.env_cars)
+    for (i,car) in ordered_cars(p,s)#enumerate(s.env_cars)
       if car.pos[1] <= 0
         feat_offset += nb_x_bins+nb_y_bins+nb_vel_bins+nb_lanechange_bins+p.NB_PHENOTYPES
         offset += 5
@@ -140,7 +160,7 @@ function generate_partial_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
     feat_offset += nb_vel_bins
     offset = 2
     oob_set = Int[]
-    for (i,car) in enumerate(s.env_cars)
+    for (i,car) in ordered_cars(p,s)#enumerate(s.env_cars)
       if car.pos[1] <= 0
         feat_offset += nb_x_bins+nb_y_bins+nb_vel_bins+nb_lanechange_bins
         offset += 4
@@ -228,6 +248,11 @@ function ReinforcementLearning.action(p::AvoidPolicy,s::Union{MLState,MLObs})
       lanechange = -1
     end
   end
+  if lanechange > 0 && s.agent_pos >= p.p.nb_col
+		lanechange = 0
+	elseif lanechange < 0 && s.agent_pos <= 1
+		lanechange = 0
+	end
   #when initiating a lanechange, set in policy, else continue to do what they said
   # and reset lanechange bit
   return MLAction(accel,lanechange)
