@@ -100,13 +100,15 @@ function draw_direction(pomdp::MLPOMDP,x::Float64,y::Float64,v_nom::Float64,s::C
 
 end
 
-function draw_sedan(pomdp::MLPOMDP,s::CarState,v_nom::Float64)
+function draw_sedan(pomdp::MLPOMDP,s::CarState,v_nom::Float64,frame::Float64=0.,INTERVAL::Float64=0.)
 	if s.pos[1] < 0.
 		#oob
 		return
 	end
-	x_ctr = s.pos[1]#pomdp.phys_param.POSITIONS[s.pos[1]]
-	y_ctr = pomdp.phys_param.y_interval*s.pos[2]
+	lane_length = pomdp.phys_param.lane_length
+	x_ctr = s.pos[1]+frame#pomdp.phys_param.POSITIONS[s.pos[1]]
+	y_ctr = pomdp.phys_param.y_interval*s.pos[2] - INTERVAL*floor(Integer,x_ctr/lane_length)
+	x_ctr = mod(x_ctr,lane_length)
 	##TODO: something to do with behavior and color
 	color = get(BEHAVIOR_COLORS,s.behavior.p_mobil.p,"#B404AE") #PLACEHOLDER
 	draw_direction(pomdp,x_ctr,y_ctr,v_nom,s)
@@ -116,45 +118,59 @@ function draw_sedan(pomdp::MLPOMDP,s::CarState,v_nom::Float64)
 	#draw_ face?
 end
 
-function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction;debug::Bool=false,fixed_frame::Bool=false)
+function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction;debug::Bool=false,frame::Float64=0.,nb_rows::Int=1)
 	#Placeholder!
 	clf()
 	if debug
 		subplot(211)
 	end
+	#println("a")
+	lane_length = pomdp.phys_param.lane_length
+	#TODO functionize this, have it work over multiple rows
 	#make the initial canvas
 	W = pomdp.phys_param.lane_length
 	H = pomdp.phys_param.w_lane*(pomdp.nb_col+1)/2
-	draw_box(0,0,W,H,"#424242") #a gray
-
-	#draw hard borders on top and bottom
 	border_thickness = 2.
 	border_color = "#000000" #black
-	draw_box(0,-border_thickness,W,border_thickness,border_color)
-	draw_box(0.,H,W,border_thickness,border_color)
-
 	#draw the lane markings 3ft long, 9ft btwn (bikes), 10cm wide
 	#~1m x 0.1m for an approximation
 	lane_marker_length = 1.
 	lane_marker_width = 0.1
 	lane_marker_inbetween = 4. #1+3
+	ROW_INTERVAL = H+2*border_thickness
+	#println("b")
 
-	lane_marker_x = collect((0.-rand()):lane_marker_inbetween:W)
-	lane_marker_length = Float64[lane_marker_length for i=1:length(lane_marker_x)]
-	lane_marker_length[1] += lane_marker_x[1]
-	lane_marker_length[end] = lane_marker_length[end]+lane_marker_x[end] > W? W-lane_marker_x[end]:lane_marker_length[end]
-	lane_marker_x[1] = max(0.,lane_marker_x[1])
-	lane_marker_y = collect(pomdp.phys_param.w_lane:pomdp.phys_param.w_lane:(H-(pomdp.phys_param.w_lane/2.)))
+	for row = 0:(nb_rows-1)
+		#road
+		Y_ABS = -1*row*ROW_INTERVAL
+		draw_box(0,Y_ABS,W,H,"#424242") #a gray
 
-	for (i,x) in enumerate(lane_marker_x)
-    for y in lane_marker_y
-        draw_box(x,y,lane_marker_length[i],lane_marker_width,"#F2F2F2") #off-white
-    end
+		#draw hard borders on top and bottom
+		draw_box(0,-border_thickness+Y_ABS,W,border_thickness,border_color)
+		draw_box(0.,H+Y_ABS,W,border_thickness,border_color)
+
+
+		lane_marker_x = collect((0.-rand()):lane_marker_inbetween:W)
+		lane_marker_length_ = Float64[lane_marker_length for i=1:length(lane_marker_x)]
+		lane_marker_length_[1] += lane_marker_x[1]
+		lane_marker_length_[end] = lane_marker_length_[end]+lane_marker_x[end] > W? W-lane_marker_x[end]:lane_marker_length_[end]
+		lane_marker_x[1] = max(0.,lane_marker_x[1])
+		lane_marker_y = collect(pomdp.phys_param.w_lane:pomdp.phys_param.w_lane:(H-(pomdp.phys_param.w_lane/2.)))
+
+		for (i,x) in enumerate(lane_marker_x)
+	    for y in lane_marker_y
+	        draw_box(x,y+Y_ABS,lane_marker_length_[i],lane_marker_width,"#F2F2F2") #off-white
+	    end
+		end
+
 	end
+	#println("c")
 
 	#draw self car
-	x_ctr = W/2.
-	y_ctr = pomdp.phys_param.y_interval*s.agent_pos
+	#TODO
+	x_ctr = W/2. + frame
+	y_ctr = pomdp.phys_param.y_interval*s.agent_pos - ROW_INTERVAL*floor(Integer,x_ctr/lane_length)
+	x_ctr = mod(x_ctr,lane_length)
 	color = "#31B404" #PLACEHOLDER, an awful lime green
 	draw_sedan(pomdp,x_ctr,y_ctr,color)
 	####TODO: move this to a separate function, but it's here for now because I'm lazy
@@ -172,12 +188,14 @@ function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction;debug::Bool=false,fixed
 	elseif s.sensor_failed
 		annotate("?",xy=(x_ctr,y_ctr),size=240)
 	end
+	#println("d")
 
 	v_nom = s.agent_vel#pomdp.phys_param.VELOCITIES[s.agent_vel]
 	#draw environment cars
 	for car in s.env_cars
-		draw_sedan(pomdp,car,v_nom)
+		draw_sedan(pomdp,car,v_nom,frame,ROW_INTERVAL)
 	end
+	#println("e")
 
 	#if is_crash, add crash graphic
 	if is_crash(pomdp,s,a,debug)

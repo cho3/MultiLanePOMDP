@@ -1,26 +1,6 @@
 #features.jl
 #just features for use with function approximation reinforcement learning
 
-
-#TODO: make things as functions of MLObs
-function is_fastcarahead(s::MLState,a::MLAction)
-
-end
-
-function is_slowcarahead(s::MLState,a::MLAction)
-
-end
-
-"""
-Potential features:
-is_{slow,fast}{left,right,null}{ahead,behind}
-is_clear{left,right}
-"""
-
-function tilecode(s::MLState,a::MLAction)
-
-end
-
 function bin(i::Int,rng::Int,nb_bins::Int)
   #NOTE: assume i \in [1...rng]
   if rng < nb_bins
@@ -94,7 +74,7 @@ function generate_joint_featurefunction(p::MLPOMDP)
   return feature_function
 end
 
-function generate_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
+function generate_disjoint_featurefunction(p::MLPOMDP;
                                               nb_x_bins::Int=20,nb_vel_bins::Int=20)
   nb_y_bins = p.nb_col
   nb_lanechange_bins = p.phys_param.NB_DIR
@@ -143,7 +123,7 @@ function generate_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
 
 end
 
-function generate_partial_disjoint_featurefunction{T}(p::MLPOMDP,A::Array{T,1};
+function generate_partial_disjoint_featurefunction(p::MLPOMDP;
                                               nb_x_bins::Int=20,nb_vel_bins::Int=20)
   nb_y_bins = p.nb_col
   nb_lanechange_bins = p.phys_param.NB_DIR
@@ -257,32 +237,3 @@ function ReinforcementLearning.action(p::AvoidPolicy,s::Union{MLState,MLObs})
   # and reset lanechange bit
   return MLAction(accel,lanechange)
 end
-
-#TODO: heuristic policy:
-#=
-"""
-  maximize min distance
-  don't be in same lane as any other car
-"""
-
-
-"""
-features
-  sensor failed AND/OR
-  agent_state = col, vel OR
-  for each car:
-    is_oob(car) OR
-    car_state(car) = x,y,vel,lanechange
-
-number of param:
-  for ea. car:
-    lanechange: 3 values TIMES
-    x: |X| values TIMES
-    y: |Y| values TIMES
-    vel: |VEL| values PLUS
-    is_oob: 1 bit
-  agent_pos: |X| values TIMES
-  agent_vel: |VEL| values
-  action: |A| values
-"""
-=#

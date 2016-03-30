@@ -35,12 +35,18 @@ Base.hash(a::MLState,h::UInt64=zero(UInt64)) = hash(a.agent_vel,hash(a.agent_pos
 
 
 type MLAction <:Action
-	vel::Int #-1,0 or +1, corresponding to desired velocities of v_fast,v_slow or v_nom
+	vel::Float64 #-1,0 or +1, corresponding to desired velocities of v_fast,v_slow or v_nom
 	lane_change::Int #-1,0, or +1, corresponding to to the right lane, no lane change, or to the left lane
 end
 ==(a::MLAction,b::MLAction) = (a.vel==b.vel) && (a.lane_change==b.lane_change)
 Base.hash(a::MLAction,h::UInt64=zero(UInt64)) = hash(a.vel,hash(a.lane_change,h))
 create_action(p::POMDP) = MLAction(0,0)
+function MLAction(x::Array{Float64,1})
+	assert(length(x)==2)
+	lane_change = abs(x[2]) <= 0.3? 0: sign(x[2])
+	return MLAction(x[1],lane_change)
+end
+vec(a::MLAction) = Float64[a.vel;a.lane_change]
 
 type CarStateObs
 	pos::Tuple{Float64,Int}

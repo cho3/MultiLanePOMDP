@@ -126,6 +126,8 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
         lanechange_other_probs = ((1-car.behavior.rationality)/length(lane_change_other))*ones(length(lane_change_other))
         lanechange_probs = WeightVec([car.behavior.rationality;lanechange_other_probs])
         lanechange = sample(rng,[lanechange_;lane_change_other],lanechange_probs)
+        #NO LANECHANGING
+        lanechange = 0
       end
 
       #if near top, remove from valid_col_top
@@ -183,10 +185,9 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
     end
     lanechange = lanechanges[rand(rng,1:length(lanechanges))]
     behavior = deepcopy(BEHAVIORS[rand(rng,1:length(BEHAVIORS))])
-    behavior.p_idm.v0 = max(
-                            min((behavior.p_idm.v0+2*rand(rng))-1.,
-                                  pomdp.phys_param.v_max),
-                            pomdp.phys_param.v_min)
+    behavior.p_idm.v0 = (min(behavior.p_idm.v0+1,pomdp.phys_param.v_max)-
+                          max(behavior.p_idm.v0-1,pomdp.phys_param.v_min))*
+                          rand(rng) + behavior.p_idm.v0
 
     car_states[j] = CarState(pos,vel,lanechange,behavior)
     #push!(car_states,CarState(pos,vel,lanechange,behavior))
@@ -349,6 +350,28 @@ function display_sim(pomdp::MLPOMDP,S::Array{MLState,1},A::Array{MLAction,1};deb
   @manipulate for i = 1:length(S); withfig(f) do
     visualize(pomdp,S[i],A[i],debug=debug) end
   end
+end
+
+function abs_display_sim(pomdp::MLPOMDP,S::Array{MLState,1},A::Array{MLAction,1};debug::Bool=false)
+  assert(length(S) == length(A))
+  #First pass: get total distance traveled
+  tot_dist = pomdp.phys_param.lane_length/2.
+  dists = zeros(length(S))
+  for (i,s) in enumerate(S)
+    dists[i] = tot_dist - pomdp.phys_param.lane_length/2.
+    tot_dist += s.agent_vel*pomdp.phys_param.dt
+  end
+  nb_rows = ceil(Integer,tot_dist/pomdp.phys_param.lane_length)
+  #second pass: draw the things
+  f = figure()
+  #pos = pomdp.phys_param.lane_length/2.
+  @manipulate for i = 1:length(S); withfig(f) do
+    #calculation
+    visualize(pomdp,S[i],A[i],debug=debug,frame=dists[i],nb_rows=nb_rows)
+    #pos += S[i].agent_vel*pomdp.phys_param.dt end
+    end
+  end
+
 end
 
 
