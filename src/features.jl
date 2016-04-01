@@ -175,6 +175,7 @@ type AvoidPolicy <: Policy
   p::MLPOMDP
   jerk::Bool
   lanechange::Int
+  exp::TrueNullFeatureExpander
 end
 AvoidPolicy(p::MLPOMDP;jerk::Bool=false) = AvoidPolicy(p,jerk,0)
 

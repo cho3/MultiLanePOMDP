@@ -63,13 +63,13 @@ type MLObs <: Observation
 	sensor_failed::Bool
 	env_cars::Array{CarStateObs,1}
 end
-MLObs(p::Int,v::Int,cars::Array{CarStateObs,1}) = MLObs(p,v,false,cars)
+MLObs(p::Int,v::Float64,cars::Array{CarStateObs,1}) = MLObs(p,v,false,cars)
 ==(a::MLObs,b::MLObs) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars) && (a.sensor_failed == b.sensor_failed)
 Base.hash(a::MLObs,h::UInt64=zero(UInt64)) = hash(a.agent_pos,hash(a.agent_vel,hash(a.env_cars,hash(a.sensor_failed,h))))
 
 type PartialFailObs <:Observation
 	agent_pos::Int
-	agent_vel::Int
+	agent_vel::Float64
 end
 ==(a::PartialFailObs,b::PartialFailObs) = (a.agent_pos==b.agent_pos) && (a.agent_vel == b.agent_vel)
 Base.hash(a::PartialFailObs,h::UInt64=zero(UInt64)) = hash(a.agent_pos,hash(a.agent_vel,h))

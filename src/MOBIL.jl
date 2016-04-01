@@ -75,9 +75,14 @@ function is_lanechange_dangerous(nbhd::CarNeighborhood,dt::Float64,l_car::Float6
 	dvlb = get(nbhd.ahead_dv,dir,0.)
 	dslf = slf-dvlf*dt
 	dslb = slb-dvlb*dt
+	diff = 0.0 #something >=0--the safety distance
+	#println(slf)
+	#println(slb)
+	#println(dslf)
+	#println(dslb)
 
-	return (slf < 0.5*l_car) || (slb < 0.5*l_car) || abs(dslb) < 0.5*l_car ||
-				abs(dslf) < 0.5*l_car
+	return (slf < diff*l_car) || (slb < diff*l_car) || dslb < diff*l_car ||
+				dslf < diff*l_car
 
 end
 
@@ -104,7 +109,7 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 		end
 		pos = car.pos
 		vel = car.vel
-		if car.pos[1] < 1
+		if car.pos[1] < 0.
 			continue
 		end
 		dlane = pos[2]-x.pos[2]
@@ -216,7 +221,7 @@ function get_mobil_lane_change(p::PhysicalParam,state::CarState,neighborhood::Ca
 	end
 
 	if is_lanechange_dangerous(neighborhood,dt,p.l_car,-1) || (a_follower_right_ < -p_mobil.b_safe)
-		left_crit -= 10000000.
+		right_crit -= 10000000.
 	end
 
 	#println(neighborhood)
