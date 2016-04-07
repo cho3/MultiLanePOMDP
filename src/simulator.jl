@@ -1,7 +1,6 @@
 #simulator.jl
 #basically a place to hold next, and to call a sequence, get relevant statistics, and visualize.
 
-typealias MLObservation Union{MLObs,PartialFailObs,CompleteFailObs}
 
 function rand!(rng::AbstractRNG,d::MLStateDistr)
   states = MLState[]

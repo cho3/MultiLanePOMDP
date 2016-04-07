@@ -22,25 +22,25 @@
 #TODO: how to handle order invariance for state space?
 #TODO: how to handle continuing a lane change?
 
-type MLState <: State
+type MLState
 	agent_pos::Int #row
 	agent_vel::Float64
 	sensor_failed::Bool
 	env_cars::Array{CarState,1}
 end #MLState
 MLState(pos::Int,vel::Float64,cars::Array{CarState,1}) = MLState(pos,vel,false,cars)
+# 0 argument constructor replaces create_state
+MLState() = MLState(1,pomdp.phys_param.v_med,false,CarState[CarState((-1.,1,),1.,0,p.BEHAVIORS[1]) for _ = 1:p.nb_cars])
 ==(a::MLState,b::MLState) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars) && (a.sensor_failed == b.sensor_failed)
 Base.hash(a::MLState,h::UInt64=zero(UInt64)) = hash(a.agent_vel,hash(a.agent_pos,hash(a.env_cars,hash(a.sensor_failed,h))))
 
-
-
-type MLAction <:Action
+type MLAction
 	vel::Float64 #-1,0 or +1, corresponding to desired velocities of v_fast,v_slow or v_nom
 	lane_change::Int #-1,0, or +1, corresponding to to the right lane, no lane change, or to the left lane
 end
+MLAction() = MLAction(0,0)
 ==(a::MLAction,b::MLAction) = (a.vel==b.vel) && (a.lane_change==b.lane_change)
 Base.hash(a::MLAction,h::UInt64=zero(UInt64)) = hash(a.vel,hash(a.lane_change,h))
-create_action(p::POMDP) = MLAction(0,0)
 function MLAction(x::Array{Float64,1})
 	assert(length(x)==2)
 	lane_change = abs(x[2]) <= 0.3? 0: sign(x[2])
@@ -57,7 +57,9 @@ end
 Base.hash(a::CarStateObs,h::UInt64=zero(UInt64)) = hash(a.pos,hash(a.vel,hash(a.lane_change,h)))
 
 ##Observe: Car positions, self position, speed, noisy realization of other car's speed (gaussian?)
-type MLObs <: Observation
+abstract MLObservation # XXX: rolling all the information into a single concrete type would probably be more efficient
+
+type MLObs <: MLObservation
 	agent_pos::Int #col
 	agent_vel::Float64 #index in velocity vector?
 	sensor_failed::Bool
@@ -67,18 +69,17 @@ MLObs(p::Int,v::Float64,cars::Array{CarStateObs,1}) = MLObs(p,v,false,cars)
 ==(a::MLObs,b::MLObs) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars) && (a.sensor_failed == b.sensor_failed)
 Base.hash(a::MLObs,h::UInt64=zero(UInt64)) = hash(a.agent_pos,hash(a.agent_vel,hash(a.env_cars,hash(a.sensor_failed,h))))
 
-type PartialFailObs <:Observation
+type PartialFailObs <: MLObservation
 	agent_pos::Int
 	agent_vel::Float64
 end
 ==(a::PartialFailObs,b::PartialFailObs) = (a.agent_pos==b.agent_pos) && (a.agent_vel == b.agent_vel)
 Base.hash(a::PartialFailObs,h::UInt64=zero(UInt64)) = hash(a.agent_pos,hash(a.agent_vel,h))
 
-type CompleteFailObs <: Observation
+type CompleteFailObs <: MLObservation
 end
 
-
-type MLPOMDP <: POMDP
+type MLPOMDP <: POMDP{MLState, MLAction, MLObservation}
 	nb_col::Int
 	col_length::Int
 	nb_cars::Int
@@ -157,8 +158,6 @@ type MLPOMDP <: POMDP
 	#physical param type holder?
 	#rewards
 end #100000.
-
-create_state(p::MLPOMDP) = MLState(1,pomdp.phys_param.v_med,false,CarState[CarState((-1.,1,),1.,0,p.BEHAVIORS[1]) for _ = 1:p.nb_cars]) #oob
 
 n_states(p::MLPOMDP) = p.nb_col*p.phys_param.nb_vel_bins*(p.col_length*p.nb_col*p.phys_param.NB_DIR*p.phys_param.nb_vel_bins*p.NB_PHENOTYPES+1)^p.nb_cars
 n_actions(p::MLPOMDP) = p.phys_param.NB_DIR*length(p.accels)
