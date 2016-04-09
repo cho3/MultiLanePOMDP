@@ -29,6 +29,7 @@ function rand(rng::AbstractRNG,action_space::ActionSpace,::Union{MLState,MLActio
   return domain(action_space)[r]
 end
 
+GenerativeModels.generate_s(pomdp::MLPOMDP, s::MLState, a::MLAction, rng::AbstractRNG, s::MLState=create_state(pomdp)) = next(rng, pomdp, s, a)
 
 function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
   dt = pomdp.phys_param.dt
@@ -382,4 +383,4 @@ end
 ==(a::MLStateObs,b::MLStateObs) = a.o==b.o
 hash(a::MLStateObs,h::UInt64=zero(UInt64)) = hash(a.o,h)
 
-isterminal(pomdp::MLPOMDP,s::MLStateObs,a::MLAction=create_action(pomdp)) = isterminal(pomdp,s.s,a)
+isterminal(pomdp::MLPOMDP,s::MLStateObs,a::MLAction=MLAction()) = isterminal(pomdp,s.s,a)
