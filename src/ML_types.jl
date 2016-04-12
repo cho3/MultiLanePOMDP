@@ -6,21 +6,9 @@
 ##POMDP Model##
 ###############
 
-#2 lane case
-"""
-| | |  19 12 5
-| | |  18 11 4
-| | |  17 10 3
-"""
-#12-11-10 is the lane divider--an intermediate state during a lane change
-
-
-#It's more effective to consider each environment car individually.
-#The break even point is when (2*nb_lanes-1)*lane_intervals > (6^4)/5 (assuming complete congestion
-
-#TODO: define hash,== for each type
-#TODO: how to handle order invariance for state space?
-#TODO: how to handle continuing a lane change?
+# agent pos:
+# 3 lanes: 1, 3, 5 in lanes
+#          2, 4, in between lanes
 
 type MLState
 	agent_pos::Int #row
