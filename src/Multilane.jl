@@ -10,14 +10,15 @@ using MCTS
 #using POMDPToolbox
 using PyPlot
 using Interact #will give warning for deprecated types (julia v0.4)
+import GenerativeModels
 
 import POMDPs: n_states, n_actions, n_observations # space sizes for discrete problems
 import POMDPs: discount, states, actions, observations # model functions
 import POMDPs: transition, observation, reward, isterminal # model functions
-import POMDPs: create_state, create_action, create_observation # s,a,o initialization
 import POMDPs: length, index, weight, pdf # discrete distribution functions
 import POMDPs: rand!, pdf # common distribution functions
 import POMDPs: domain # space functions
+import POMDPs: create_state, create_action, create_observation
 import POMDPs: create_transition_distribution, create_observation_distribution, create_belief, initial_belief
 import POMDPs: update, updater
 import POMDPs: iterator, rand

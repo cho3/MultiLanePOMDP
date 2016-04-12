@@ -1,9 +1,6 @@
 ##POMDP Types
 #Convenience abstract types to remove dependence on external packages for hte purposes of testing
-abstract State
-abstract Action
-abstract Observation
-abstract POMDP
+abstract POMDP{S,A,O}
 abstract AbstractSpace
 abstract AbstractDistribution
 import Iterators.product
