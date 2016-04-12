@@ -177,7 +177,7 @@ type AvoidPolicy <: Policy
   lanechange::Int
   exp::TrueNullFeatureExpander
 end
-AvoidPolicy(p::MLPOMDP;jerk::Bool=false) = AvoidPolicy(p,jerk,0)
+AvoidPolicy(p::MLPOMDP;jerk::Bool=false) = AvoidPolicy(p,jerk,0,TrueNullFeatureExpander())
 
 function get_closest_car(pomdp::MLPOMDP,s::Union{MLState,MLObs},lookahead_only::Bool=false)
   v = s.agent_vel

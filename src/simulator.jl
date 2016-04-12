@@ -114,6 +114,10 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
       else
         #sample normally
         lanechange_ = get_mobil_lane_change(pomdp.phys_param,car,neighborhood)
+        #if frnot neighbor is lanechanging, don't lane change
+        if neighborhood.ahead_dv != 0 
+          lanechange_ = 0
+        end
         lane_change_other = setdiff([-1;0;1],[lanechange_])
         #safety criterion is hard
         if is_lanechange_dangerous(neighborhood,dt,pomdp.phys_param.l_car,1)
@@ -127,7 +131,7 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
         lanechange_probs = WeightVec([car.behavior.rationality;lanechange_other_probs])
         lanechange = sample(rng,[lanechange_;lane_change_other],lanechange_probs)
         #NO LANECHANGING
-        lanechange = 0
+        #lanechange = 0
       end
 
       #if near top, remove from valid_col_top

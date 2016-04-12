@@ -35,7 +35,7 @@ end
 Base.hash(a::BehaviorModel,h::UInt64=zero(UInt64)) = hash(a.p_idm,hash(a.p_mobil,hash(a.rationality,h)))
 
 function BehaviorModel(s::AbstractString,v0::Float64,s0::Float64,idx::Int)
-	typedict = Dict{AbstractString,Float64}("cautious"=>0.999,"normal"=>0.99,"aggressive"=>0.95) #rationality
+	typedict = Dict{AbstractString,Float64}("cautious"=>1.,"normal"=>1.,"aggressive"=>1.) #rationality
 	return BehaviorModel(IDMParam(s,v0,s0),MOBILParam(s),typedict[s],idx)
 end
 
@@ -64,9 +64,10 @@ type CarNeighborhood
 	behind_dv::Dict{Int,Float64}
 	ahead_idm::Dict{Int,IDMParam}
 	behind_idm::Dict{Int,IDMParam}
+	ahead_lanechange::Int
 end
-CarNeighborhood(x,y) = CarNeighborhood(x,deepcopy(x),deepcopy(x),deepcopy(x),y,deepcopy(y))
-CarNeighborhood() = CarNeighborhood(Dict{Int,Float64}(),Dict{Int,IDMParam}())
+CarNeighborhood(x,y,z) = CarNeighborhood(x,deepcopy(x),deepcopy(x),deepcopy(x),y,deepcopy(y),z)
+CarNeighborhood() = CarNeighborhood(Dict{Int,Float64}(),Dict{Int,IDMParam}(),0)
 
 function is_lanechange_dangerous(nbhd::CarNeighborhood,dt::Float64,l_car::Float64,dir::Int)
 	slf = get(nbhd.behind_dist,dir,1000.)
@@ -129,6 +130,9 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 			neighborhood.ahead_dist[dlane] = dist - p.l_car
 			neighborhood.ahead_dv[dlane] = dv
 			neighborhood.ahead_idm[dlane] = car.behavior.p_idm #pointless
+			if dlane == 0
+				neighborhood.ahead_lanechange = car.lane_change
+			end
 		elseif (dist < 0) && ((-1*dist - p.l_car) < get(neighborhood.behind_dist,dlane,1000.))
 			neighborhood.behind_dist[dlane] = -1*dist - p.l_car
 			neighborhood.behind_dv[dlane] = -1*dv

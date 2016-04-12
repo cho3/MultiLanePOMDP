@@ -202,6 +202,7 @@ function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction;debug::Bool=false,frame
 		#subplot(211)
 		draw_bang(x_ctr,y_ctr)
 	end
+	xlim(0.,W)
 	axis("equal")
 	return gcf()
 end
