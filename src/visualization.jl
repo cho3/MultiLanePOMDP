@@ -107,7 +107,7 @@ function draw_sedan(pomdp::MLPOMDP,s::CarState,v_nom::Float64,frame::Float64=0.,
 	end
 	lane_length = pomdp.phys_param.lane_length
 	x_ctr = s.pos[1]+frame#pomdp.phys_param.POSITIONS[s.pos[1]]
-	y_ctr = pomdp.phys_param.y_interval*s.pos[2] - INTERVAL*floor(Integer,x_ctr/lane_length)
+	y_ctr = pomdp.phys_param.y_interval*s.pos[2] - INTERVAL*floor(Integer,x_ctr/lane_length)*(frame == 0. ? 0.: 1.)
 	x_ctr = mod(x_ctr,lane_length)
 	##TODO: something to do with behavior and color
 	color = get(BEHAVIOR_COLORS,s.behavior.p_mobil.p,"#B404AE") #PLACEHOLDER
@@ -202,7 +202,7 @@ function visualize(pomdp::MLPOMDP,s::MLState,a::MLAction;debug::Bool=false,frame
 		#subplot(211)
 		draw_bang(x_ctr,y_ctr)
 	end
-	xlim(0.,W)
 	axis("equal")
+	xlim(-pomdp.phys_param.l_car,W)
 	return gcf()
 end
