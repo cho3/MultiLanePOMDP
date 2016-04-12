@@ -170,7 +170,7 @@ function rev_1d_interp(arr::Array{Float64,1},x::Float64,fx::Float64)
 	return d
 end
 
-function transition(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLStateDistr=create_transition_distribution(pomdp))
+function transition(pomdp::MLPOMDP, s::MLState, a::MLAction, d::MLStateDistr=create_transition_distribution(pomdp))
 
 	dt = pomdp.phys_param.dt
 	POSITIONS = pomdp.phys_param.POSITIONS
@@ -411,4 +411,4 @@ function observation(pomdp::MLPOMDP,s::MLState,a::MLAction,d::MLObsDistr=create_
 end
 
 discount(pomdp::MLPOMDP) = pomdp.discount
-isterminal(pomdp::MLPOMDP,s::MLState,a::MLAction=create_action(pomdp)) = is_crash(pomdp,s,a) #placeholder
+isterminal(pomdp::MLPOMDP,s::MLState,a::MLAction=MLAction()) = is_crash(pomdp,s,a) #placeholder
