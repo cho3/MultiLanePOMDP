@@ -13,7 +13,7 @@
 type MLState
 	agent_pos::Int #row
 	agent_vel::Float64
-	sensor_failed::Bool
+	# sensor_failed::Bool # getting rid of this for the base mdp
 	env_cars::Array{CarState,1}
 end #MLState
 MLState(pos::Int,vel::Float64,cars::Array{CarState,1}) = MLState(pos,vel,false,cars)

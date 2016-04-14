@@ -34,6 +34,7 @@ import Iterators.product
 import Distributions: Normal, cdf
 import StatsBase: WeightVec, sample
 
+
 ##TODO: implement with two cars? (else no lane changing will occur)
 ##TODO: move MOBIL and IDM to another file(s)
 
@@ -69,6 +70,8 @@ include("crash.jl")
 include("ML_model.jl")
 include("visualization.jl")
 include("simulator.jl")
+
+include("ML_base_types.jl")
 
 ##TODO: export....
 

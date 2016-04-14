@@ -11,34 +11,35 @@ type PhysicalParam
 	l_car::Float64
 	v_nominal::Float64
 	w_lane::Float64
-	y_interval::Float64
-	x_interval::Float64
+	# y_interval::Float64
+	# x_interval::Float64
 	v_fast::Float64
 	v_slow::Float64
 	v_med::Float64
 	v_max::Float64
 	v_min::Float64
-	nb_vel_bins::Int
-	nb_env_cars::Int
+	# nb_vel_bins::Int
+	nb_env_cars::Int # maximum
+    nb_lanes::Int
 	lane_length::Float64
-	NB_DIR::Int
-	NB_POS::Int
-	VELOCITIES::Array{Float64,1}
-	POSITIONS::Array{Float64,1}
+	# NB_DIR::Int
+	# NB_POS::Int
+	# VELOCITIES::Array{Float64,1}
+	# POSITIONS::Array{Float64,1}
 	function PhysicalParam(nb_lanes::Int;dt::Float64=0.75,
 							w_car::Float64=2.,
 							l_car::Float64=4.,
 							v_nominal::Float64=31.,
 							w_lane::Float64=4.,
-							y_interval::Float64=2.,
-							x_interval::Float64=0.25,
+							# y_interval::Float64=2.,
+							# x_interval::Float64=0.25,
 							v_fast::Float64=35.,
 							v_slow::Float64=27.,
 							v_med::Float64=31.,
 							nb_vel_bins::Int=100,
 							nb_env_cars::Int=1,
 							lane_length::Float64=12.,
-							NB_DIR::Int=3,
+							# NB_DIR::Int=3,
 							v_max::Float64=v_fast+0.,
 							v_min::Float64=v_slow-0.)
 
@@ -53,8 +54,8 @@ type PhysicalParam
 		self.l_car = l_car
 		self.v_nominal = v_nominal
 		self.w_lane = w_lane
-		self.y_interval = y_interval
-		self.x_interval = x_interval
+		# self.y_interval = y_interval
+		# self.x_interval = x_interval
 		self.v_fast = v_fast
 		self.v_slow = v_slow
 		self.v_med = v_med
@@ -62,13 +63,14 @@ type PhysicalParam
 		self.v_min = v_min
 		self.nb_vel_bins = nb_vel_bins
 		self.nb_env_cars = nb_env_cars
+        self.nb_lanes = nb_lanes
 		self.lane_length = lane_length
-		self.NB_DIR = NB_DIR
-		self.NB_POS = convert(Int,round((lane_length/x_interval)*((w_lane/y_interval)*nb_lanes-1))) #2*nb_lane-1 ostensibly
-		self.VELOCITIES = collect(linspace(v_slow,v_fast,nb_vel_bins))
+		# self.NB_DIR = NB_DIR
+		# self.NB_POS = convert(Int,round((lane_length/x_interval)*((w_lane/y_interval)*nb_lanes-1))) #2*nb_lane-1 ostensibly
+		# self.VELOCITIES = collect(linspace(v_slow,v_fast,nb_vel_bins))
 		####NOTE: THIS IS GETTING CHANGED tO THE NEXT LINE I PRAY TO GOD IT DOESN'T EXPLODE
 		#self.POSITIONS = collect(linspace(-lane_length/2,lane_length/2,convert(Int,round(lane_length/x_interval))))
-		self.POSITIONS = collect(linspace(0.,lane_length,convert(Int,round(lane_length/x_interval))))
+		# self.POSITIONS = collect(linspace(0.,lane_length,convert(Int,round(lane_length/x_interval))))
 
 
 		return self
