@@ -75,11 +75,10 @@ function test_units()
 	test_idm()
 	test_mobil()
 	test_pomdp_types()
-	test_pomdp_model()
+	# test_pomdp_model()
 	test_crash()
 end
 
 test_units()
-######################
-##FUNCTIONAL TESTING##
-######################
+
+include("example_from_notebook.jl")

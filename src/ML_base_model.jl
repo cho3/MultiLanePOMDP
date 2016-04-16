@@ -1,4 +1,5 @@
-actions(mdp::OriginalMDP) = ActionSpace([MLAction(x[1],x[2]) for x in product(mdp.accels,[-1,0,1])])
+
+actions(mdp::OriginalMDP) = ActionSpace([MLAction(x[1],x[2]) for x in product(mdp.dmodel.accels,[-1,0,1])])
 actions(mdp::OriginalMDP,s::MLState,A::ActionSpace=actions(mdp)) = A #SARSOP does not support partially available actions
 
 function __reward(mdp::OriginalMDP,s::MLState,a::MLAction)

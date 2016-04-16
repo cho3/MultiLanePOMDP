@@ -72,6 +72,7 @@ include("visualization.jl")
 include("simulator.jl")
 
 include("ML_base_types.jl")
+include("ML_base_model.jl")
 
 ##TODO: export....
 

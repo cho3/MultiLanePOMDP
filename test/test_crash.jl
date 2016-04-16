@@ -123,5 +123,5 @@ function test_crash()
 	test_cross2d()
 	test_line_segment_intersect()
 	test_poly_intersect()
-	test_is_crash()
+	# test_is_crash()
 end

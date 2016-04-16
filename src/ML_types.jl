@@ -16,10 +16,9 @@ type MLState
 	# sensor_failed::Bool # getting rid of this for the base mdp
 	env_cars::Array{CarState,1}
 end #MLState
-MLState(pos::Int,vel::Float64,cars::Array{CarState,1}) = MLState(pos,vel,false,cars)
-# 0 argument constructor replaces create_state
-==(a::MLState,b::MLState) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars) && (a.sensor_failed == b.sensor_failed)
-Base.hash(a::MLState,h::UInt64=zero(UInt64)) = hash(a.agent_vel,hash(a.agent_pos,hash(a.env_cars,hash(a.sensor_failed,h))))
+
+==(a::MLState,b::MLState) = (a.agent_pos==b.agent_pos) && (a.agent_vel==b.agent_vel) &&(a.env_cars == b.env_cars)
+Base.hash(a::MLState,h::UInt64=zero(UInt64)) = hash(a.agent_vel,hash(a.agent_pos,hash(a.env_cars,h)))
 
 type MLAction
 	vel::Float64 #-1,0 or +1, corresponding to desired velocities of v_fast,v_slow or v_nom
@@ -115,7 +114,7 @@ type MLPOMDP <: POMDP{MLState, MLAction, MLObservation}
 		assert((fuzz >= 0.) && (fuzz <= 1.))
 
 		self = new()
-		self.nb_col = convert(Int,round((phys_param.w_lane/phys_param.y_interval)*nb_lanes-1))
+		# self.nb_col = convert(Int,round((phys_param.w_lane/phys_param.y_interval)*nb_lanes-1))
 		self.col_length = length(phys_param.POSITIONS)
 		self.nb_cars = nb_cars
 		self.o_vel_sig = o_vel_sig

@@ -98,7 +98,9 @@ function get_adj_cars(p::PhysicalParam,arr::Array{CarState,1},i::Int)
 		#can't go right
 		neighborhood.ahead_dist[-1] = -100.
 		neighborhood.behind_dist[-1] = -100.
-	elseif x.pos[2] >= p.NB_POS/length(p.POSITIONS)
+	# elseif x.pos[2] >= p.NB_POS/length(p.POSITIONS)
+    # XXX is the line below the same as the line above??
+	elseif x.pos[2] >= 2*p.nb_lanes-1
 		#can't go left
 		neighborhood.ahead_dist[1] = -100.
 		neighborhood.behind_dist[1] = -100.

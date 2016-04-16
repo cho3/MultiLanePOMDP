@@ -61,7 +61,7 @@ type PhysicalParam
 		self.v_med = v_med
 		self.v_max = v_max
 		self.v_min = v_min
-		self.nb_vel_bins = nb_vel_bins
+		# self.nb_vel_bins = nb_vel_bins
 		self.nb_env_cars = nb_env_cars
         self.nb_lanes = nb_lanes
 		self.lane_length = lane_length
