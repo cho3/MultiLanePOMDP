@@ -50,6 +50,13 @@ end
 discount(mdp::MLMDP) = mdp.discount
 isterminal(mdp::MDP,s::MLState,a::MLAction=MLAction()) = is_crash(mdp,s,a) #placeholder
 
+function init(mdp::OriginalMDP,rng::AbstractRNG=MersenneTwister(34985))
+  return MLState(1,mdp.dmodel.phys_param.v_med,
+                CarState[CarState((-1.,1),1.,0,mdp.dmodel.BEHAVIORS[1]) for i = 1:mdp.dmodel.nb_cars])
+end
+
+
+
 GenerativeModels.generate_s(mdp::OriginalMDP, s::MLState, a::MLAction, rng::AbstractRNG, sp::MLState=create_state(mdp)) = next(rng, mdp, s, a)
 
 function next(rng::AbstractRNG,mdp::OriginalMDP,s::MLState,a::MLAction)
