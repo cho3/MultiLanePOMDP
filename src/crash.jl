@@ -154,6 +154,8 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction,debug::Bool=false)
 	X = Array{Float64,2}[[agent_pos agent_pos; agent_y agent_y+w_car_],[agent_pos+l_car agent_pos+l_car; agent_y agent_y+w_car_],
 						[agent_pos agent_pos+l_car; agent_y agent_y],[agent_pos agent_pos+l_car; agent_y+w_car_ agent_y+w_car_]]
 
+	x = [agent_pos; agent_y]
+	d = norm([2*l_car;2*w_car])
 	if debug
 		subplot(212)
 		for x in X
@@ -181,7 +183,14 @@ function is_crash(pomdp::MLPOMDP,s::MLState,a::MLAction,debug::Bool=false)
 		#dy = lane_change*pomdp.phys_param.y_interval
 		p = pos[1]#pomdp.phys_param.POSITIONS[pos[1]]
 		y = pos[2]*pomdp.phys_param.y_interval
-		##TODO: make consistent with new formulation
+
+		#pruning check
+		y1 = [p;y]
+		y2 = [p+dp;y+dy]
+		if norm(x-y1) > d && norm(x-y2) > d
+			continue
+		end
+
 		Y1 = Array{Float64,2}[[p p; y y+w_car],[p+l_car p+l_car; y y+w_car],[p p+l_car; y y],[p p+l_car; y+w_car y+w_car]]
 		Y2 = Array{Float64,2}[xy + [dp dp; dy dy] for xy in Y1]
 		Y3 = Array{Float64,2}[[p p+dp; y y+dy],[p+l_car p+dp+l_car; y y+dy],[p p+dp; y+w_car y+dy+w_car],[p+l_car p+dp+l_car; y+w_car y+dy+w_car]]

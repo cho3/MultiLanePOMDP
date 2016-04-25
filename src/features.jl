@@ -15,7 +15,7 @@ function bin(i::Int,rng::Int,nb_bins::Int)
 end
 
 
-function ordered_cars(p::MLPOMDP,s::MLState)
+function ordered_cars(p::MLPOMDP,s::Union{MLState,MLObs})
 
   x = p.phys_param.lane_length/2.
   y = s.agent_pos*p.phys_param.y_interval

@@ -115,7 +115,7 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
         #sample normally
         lanechange_ = get_mobil_lane_change(pomdp.phys_param,car,neighborhood)
         #if frnot neighbor is lanechanging, don't lane change
-        if neighborhood.ahead_dv != 0 
+        if neighborhood.ahead_dv != 0
           lanechange_ = 0
         end
         lane_change_other = setdiff([-1;0;1],[lanechange_])
@@ -128,8 +128,8 @@ function next(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
         end
 
         lanechange_other_probs = ((1-car.behavior.rationality)/length(lane_change_other))*ones(length(lane_change_other))
-        lanechange_probs = WeightVec([car.behavior.rationality;lanechange_other_probs])
-        lanechange = sample(rng,[lanechange_;lane_change_other],lanechange_probs)
+        lanechange_probs = WeightVec([car.behavior.rationality;lanechange_other_probs]) #expensive! cat
+        lanechange = sample(rng,[lanechange_;lane_change_other],lanechange_probs) #expensive! cat
         #NO LANECHANGING
         #lanechange = 0
       end
@@ -221,6 +221,8 @@ function bin(arr::AbstractArray,val::Union{Float64,Int})
 end
 
 
+GenerativeModels.generate_o{S,A,O}(p::POMDP{S,A,O}, s, a, sp, rng::AbstractRNG, o::O=create_observation(p)) = observe(rng,p,s,a)
+
 function observe(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
   agent_pos = s.agent_pos
 	agent_vel = s.agent_vel
@@ -268,14 +270,14 @@ function observe(rng::AbstractRNG,pomdp::MLPOMDP,s::MLState,a::MLAction)
     lane_ = bin(collect(1:pomdp.nb_col),l_)
 
     #LANECHANGE NOISE
-    lc = lanechange
+    lc = car.lane_change
     lc_sig = pomdp.o_lanechange_sig*dist
     lc_sig = min(lane_sig,1.) #at sigma = 1.-> approximately uniform over [-1,0,1]
     lc_ = lc + Z[i,3]*lc_sig
 
-    lane_change_ = bin(collect(-1:1),lx_)
+    lane_change_ = bin(collect(-1:1),lc_)
 
-    push!(car_obs,CarStateObs((pos_,lane_),vel_,car.lane_change_))
+    push!(car_obs,CarStateObs((pos_,lane_),vel_,lane_change_))
   end
 
   #i'm going to be relying on the feature function to sort this out for me
